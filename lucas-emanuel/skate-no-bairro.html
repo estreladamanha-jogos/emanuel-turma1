@@ -54,6 +54,7 @@
   <div id="hud">
     <div class="stat">🪙 <b id="coinVal">0</b></div>
     <div id="progress"><div id="progressFill"></div><div id="progressIcon">🛹</div></div>
+    <div class="stat" id="lifeVal">❤️❤️❤️</div>
     <div class="stat">🏁 <b id="pctVal">0</b>%</div>
   </div>
 
@@ -93,11 +94,16 @@ const TRACK_LENGTH = 1000;    // metros até a chegada
 const START_SPEED = 14;       // metros por segundo
 const MAX_D = 95;             // até que distância a gente desenha
 
+const MAX_LIVES = 3;
+const INVINCIBLE_TIME = 1.5; // segundos piscando depois de tomar uma batida
+
 let speed = START_SPEED;
 let distance = 0;
 let time = 0;
 let gameOver = false;
 let coinCount = 0;
+let lives = MAX_LIVES;
+let invincibleUntil = 0; // "time" em que a invencibilidade acaba
 
 // ---------- Perspectiva ----------
 function sc(d) { return FOCAL / (FOCAL + Math.max(d, -FOCAL*0.6)); }
@@ -215,12 +221,13 @@ function update(dt) {
     }
   }
 
+  const invincible = time < invincibleUntil;
   for (const o of obstacles) {
     if (o.passed) continue;
     const d = o.d - distance;
     if (d < 1.2 && d > -1.5 && Math.abs(player.lane - o.lane) < 0.55) {
       const jumpedOver = o.type === 'cone' && player.jumpY > PLAYER_JUMP_CLEAR;
-      if (!jumpedOver) { loseGame(); return; }
+      if (!jumpedOver && !invincible) { getHit(); if (gameOver) return; }
     }
     if (d < -1.5) o.passed = true;
   }
@@ -239,6 +246,13 @@ function winGame() {
   document.getElementById('overlay').classList.add('show');
 }
 
+function getHit() {
+  lives--;
+  document.getElementById('lifeVal').textContent = '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(MAX_LIVES - Math.max(0, lives));
+  if (lives <= 0) { loseGame(); return; }
+  invincibleUntil = time + INVINCIBLE_TIME;
+}
+
 function loseGame() {
   gameOver = true;
   document.getElementById('overlayTitle').textContent = '💥 VOCÊ É MUITO RUIM!';
@@ -250,12 +264,15 @@ function restart() {
   speed = START_SPEED;
   distance = 0; time = 0;
   coinCount = 0;
+  lives = MAX_LIVES;
+  invincibleUntil = 0;
   gameOver = false;
   player.lane = player.targetLane = 1;
   player.jumpY = 0; player.vy = 0; player.onGround = true;
   buildCoins();
   buildObstacles();
   document.getElementById('coinVal').textContent = 0;
+  document.getElementById('lifeVal').textContent = '❤️'.repeat(MAX_LIVES);
   document.getElementById('overlay').classList.remove('show');
 }
 
@@ -580,6 +597,11 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(x, BASE_Y - jy + bob);
   ctx.rotate(lean);
+
+  // pisca enquanto está invencível, depois de tomar uma batida
+  if (time < invincibleUntil && Math.floor(time * 10) % 2 === 0) {
+    ctx.globalAlpha = 0.35;
+  }
 
   // skate (shape visto de trás)
   const deck = ctx.createLinearGradient(0, -20, 0, -6);
