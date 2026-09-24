@@ -55,12 +55,13 @@
     <div class="stat">🪙 <b id="coinVal">0</b></div>
     <div id="progress"><div id="progressFill"></div><div id="progressIcon">🛹</div></div>
     <div class="stat" id="lifeVal">❤️❤️❤️</div>
+    <div class="stat">🐘 <b id="elephantVal">0</b>%</div>
     <div class="stat">🏁 <b id="pctVal">0</b>%</div>
   </div>
 
   <canvas id="game" width="900" height="500"></canvas>
 
-  <div id="hint">← → trocar de pista · ↑ ou ESPAÇO pular · junte moedas e chegue ao fim da rua 🛹</div>
+  <div id="hint">← → trocar de pista · ↑ ou ESPAÇO pular · cuidado com o 🐘 nas batidas seguidas!</div>
 
   <div id="overlay">
     <h2 id="overlayTitle">🏁 CHEGOU!</h2>
@@ -74,9 +75,10 @@
    SKATE NO BAIRRO — jogo modelo da Aula 5 (corredor de 3
    pistas, visto de trás). Skatista, controle, moedas,
    obstáculos (cone/pula, velho com bengala/desvia e meteoro
-   com aviso/desvia) e objetivo (chegar ao fim da rua) já
-   funcionam. Isso a turma continua construindo nas próximas
-   missões, sempre em cima deste código.
+   com aviso/desvia), o elefante perseguidor (cada batida
+   aproxima ele, o tempo afasta) e o objetivo (chegar ao fim
+   da rua) já funcionam. Isso a turma continua construindo
+   nas próximas missões, sempre em cima deste código.
    ========================================================= */
 
 const canvas = document.getElementById('game');
@@ -98,6 +100,11 @@ const MAX_LIVES = 3;
 const INVINCIBLE_TIME = 1.5; // segundos piscando depois de tomar uma batida
 const METEOR_WARN_TIME = 1;  // segundos de aviso (🌎 + sombra vermelha) antes do meteoro cair
 
+// elefante perseguidor: 0% = bem longe, 100% = te pegou
+const ELEPHANT_HIT_JUMP = 60;   // quanto ele se aproxima a cada batida
+const ELEPHANT_COOLDOWN = 5;    // % por segundo que ele se afasta com o tempo
+const ELEPHANT_CATCH = 100;     // a partir daqui ele te pega
+
 let speed = START_SPEED;
 let distance = 0;
 let time = 0;
@@ -105,6 +112,7 @@ let gameOver = false;
 let coinCount = 0;
 let lives = MAX_LIVES;
 let invincibleUntil = 0; // "time" em que a invencibilidade acaba
+let elephantChase = 0;   // 0 a 100+, distância do elefante (100 = te pegou)
 
 // ---------- Perspectiva ----------
 function sc(d) { return FOCAL / (FOCAL + Math.max(d, -FOCAL*0.6)); }
@@ -206,6 +214,12 @@ function update(dt) {
 
   player.lane += (player.targetLane - player.lane) * Math.min(1, dt * 14);
 
+  // o elefante vai se afastando com o tempo, até chegar a 0%
+  if (elephantChase > 0) {
+    elephantChase = Math.max(0, elephantChase - ELEPHANT_COOLDOWN * dt);
+    document.getElementById('elephantVal').textContent = Math.round(elephantChase);
+  }
+
   if (!player.onGround) {
     player.vy -= GRAVITY * dt;
     player.jumpY += player.vy * dt;
@@ -253,8 +267,21 @@ function winGame() {
 function getHit() {
   lives--;
   document.getElementById('lifeVal').textContent = '❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(MAX_LIVES - Math.max(0, lives));
+
+  // cada batida aproxima o elefante; se ele chega perto demais, te pega na hora
+  elephantChase = Math.min(140, elephantChase + ELEPHANT_HIT_JUMP);
+  document.getElementById('elephantVal').textContent = Math.round(Math.min(100, elephantChase));
+  if (elephantChase >= ELEPHANT_CATCH) { caughtByElephant(); return; }
+
   if (lives <= 0) { loseGame(); return; }
   invincibleUntil = time + INVINCIBLE_TIME;
+}
+
+function caughtByElephant() {
+  gameOver = true;
+  document.getElementById('overlayTitle').textContent = '🐘 O ELEFANTE TE PEGOU!';
+  document.getElementById('overlayText').textContent = `Duas batidas seguidas e ele te alcançou depois de ${Math.floor(distance)}m e ${coinCount} moedas!`;
+  document.getElementById('overlay').classList.add('show');
 }
 
 function loseGame() {
@@ -270,6 +297,7 @@ function restart() {
   coinCount = 0;
   lives = MAX_LIVES;
   invincibleUntil = 0;
+  elephantChase = 0;
   gameOver = false;
   player.lane = player.targetLane = 1;
   player.jumpY = 0; player.vy = 0; player.onGround = true;
@@ -277,6 +305,7 @@ function restart() {
   buildObstacles();
   document.getElementById('coinVal').textContent = 0;
   document.getElementById('lifeVal').textContent = '❤️'.repeat(MAX_LIVES);
+  document.getElementById('elephantVal').textContent = 0;
   document.getElementById('overlay').classList.remove('show');
 }
 
@@ -720,6 +749,52 @@ function drawPlayer() {
   ctx.restore();
 }
 
+// elefante perseguidor — corre atrás do skatista; quanto mais perto de
+// 100%, maior e mais colado ele aparece
+function drawElephant() {
+  if (elephantChase <= 2) return;
+  const t = Math.min(1, elephantChase / 100); // 0 → 1
+  const x = laneX(player.lane, 0) + Math.sin(time * 3) * 5;
+  const y = BASE_Y - 6 - (1 - t) * 90; // longe = mais alto e menor
+  const scale = 0.3 + t * 0.85;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = 0.55 + t * 0.45;
+
+  // sombra
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(-14, 52, 58, 12, 0, 0, Math.PI*2); ctx.fill();
+
+  // corpo
+  ctx.fillStyle = '#8891a6';
+  ctx.beginPath(); ctx.ellipse(0, 6, 46, 34, 0, 0, Math.PI*2); ctx.fill();
+  // orelha
+  ctx.fillStyle = '#6f7890';
+  ctx.beginPath(); ctx.ellipse(-56, -14, 20, 26, 0.3, 0, Math.PI*2); ctx.fill();
+  // cabeça
+  ctx.fillStyle = '#8891a6';
+  ctx.beginPath(); ctx.ellipse(-42, -6, 26, 24, 0, 0, Math.PI*2); ctx.fill();
+  // tromba
+  ctx.strokeStyle = '#8891a6'; ctx.lineWidth = 13; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-60, 4); ctx.quadraticCurveTo(-74, 30, -58, 46); ctx.stroke();
+  ctx.lineCap = 'butt';
+  // presas
+  ctx.strokeStyle = '#fff8e6'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-62, 10); ctx.lineTo(-72, 22); ctx.stroke();
+  ctx.lineCap = 'butt';
+  // pernas
+  ctx.fillStyle = '#6f7890';
+  ctx.fillRect(-20, 30, 15, 26);
+  ctx.fillRect(16, 30, 15, 26);
+  // olho
+  ctx.fillStyle = '#1c1230';
+  ctx.beginPath(); ctx.arc(-38, -10, 3.4, 0, Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
 // ---------- Desenho: tudo junto ----------
 function draw() {
   drawSky();
@@ -730,6 +805,7 @@ function draw() {
   // obstáculos: de longe pra perto, pra ficar por cima da cena mas atrás do skatista
   const sorted = [...obstacles].sort((a, b) => b.d - a.d);
   for (const o of sorted) drawObstacle(o);
+  drawElephant();
   drawPlayer();
 }
 
