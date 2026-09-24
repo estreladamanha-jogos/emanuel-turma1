@@ -73,10 +73,10 @@
 /* =========================================================
    SKATE NO BAIRRO — jogo modelo da Aula 5 (corredor de 3
    pistas, visto de trás). Skatista, controle, moedas,
-   obstáculos (cone/pula e velho com grade/desvia) e
-   objetivo (chegar ao fim da rua) já funcionam. Isso a
-   turma continua construindo nas próximas missões, sempre
-   em cima deste código.
+   obstáculos (cone/pula, velho com bengala/desvia e meteoro
+   com aviso/desvia) e objetivo (chegar ao fim da rua) já
+   funcionam. Isso a turma continua construindo nas próximas
+   missões, sempre em cima deste código.
    ========================================================= */
 
 const canvas = document.getElementById('game');
@@ -96,6 +96,7 @@ const MAX_D = 95;             // até que distância a gente desenha
 
 const MAX_LIVES = 3;
 const INVINCIBLE_TIME = 1.5; // segundos piscando depois de tomar uma batida
+const METEOR_WARN_TIME = 1;  // segundos de aviso (🌎 + sombra vermelha) antes do meteoro cair
 
 let speed = START_SPEED;
 let distance = 0;
@@ -133,6 +134,8 @@ buildCoins();
 // ---------- Obstáculos ----------
 // tipo "cone": pequeno, dá pra pular por cima.
 // tipo "velho": grade/pessoa, só dá pra desviar trocando de pista.
+// tipo "meteoro": médio, cai de uma janela na pista — avisa 1s antes
+//                 (🌎 caindo + sombra vermelha), só dá pra desviar.
 let obstacles = [];
 let nextSpawnAt = 0; // distância (m) em que o próximo obstáculo aparece
 let spawnSeed = 0;
@@ -145,7 +148,8 @@ function scheduleNextSpawn(fromD) {
 
 function spawnObstacle() {
   spawnSeed++;
-  const type = hash(spawnSeed*13.3 + 1) < 0.55 ? 'cone' : 'velho';
+  const r = hash(spawnSeed*13.3 + 1);
+  const type = r < 0.45 ? 'cone' : r < 0.75 ? 'velho' : 'meteoro';
   const lane = Math.floor(hash(spawnSeed*17.1 + 5) * 3);
 
   // nunca bloquear as 3 pistas no mesmo trecho: olha os obstáculos
@@ -553,8 +557,53 @@ function drawVelho(o) {
   ctx.restore();
 }
 
+// meteoro — cai de uma janela, avisa 1s antes de pousar na pista
+function drawMeteoro(o) {
+  const d = o.d - distance;
+  if (d < -2 || d > MAX_D) return;
+  const remaining = d / speed; // segundos até o impacto (negativo depois de cair)
+  if (remaining > METEOR_WARN_TIME) return; // ainda não chegou a hora do aviso
+
+  const s = sc(d), x = laneX(o.lane, d), y = gy(d);
+
+  if (remaining > 0) {
+    // fase de aviso: sombra vermelha piscando cresce no chão + 🌎 caindo do alto
+    const t = 1 - remaining / METEOR_WARN_TIME; // 0 → 1
+    ctx.save();
+    ctx.globalAlpha = 0.4 + 0.35 * Math.sin(time * 22);
+    ctx.fillStyle = '#ff2d2d';
+    const rx = (10 + t * 20) * s, ry = rx * 0.3;
+    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    const fallY = y - (1 - t) * 260 * s; // vem de cima, cai até o chão
+    ctx.save();
+    ctx.font = `${Math.max(10, 30*s)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('🌎', x, fallY);
+    ctx.restore();
+  } else {
+    // já caiu: cratera fumegante no chão, obstáculo de verdade
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(x, y, 26*s, 8*s, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#4a3628'; ctx.strokeStyle = '#2a1c12'; ctx.lineWidth = Math.max(1, 2*s);
+    ctx.beginPath(); ctx.ellipse(x, y - 4*s, 22*s, 9*s, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#8a6a52';
+    ctx.beginPath(); ctx.arc(x - 4*s, y - 14*s, 14*s, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 8*s, y - 10*s, 9*s, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff9a3d';
+    ctx.beginPath(); ctx.arc(x - 2*s, y - 16*s, 4*s, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
 function drawObstacle(o) {
-  if (o.type === 'cone') drawCone(o); else drawVelho(o);
+  if (o.type === 'cone') drawCone(o);
+  else if (o.type === 'velho') drawVelho(o);
+  else drawMeteoro(o);
 }
 
 function drawFinish() {
