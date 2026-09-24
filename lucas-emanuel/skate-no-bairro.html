@@ -582,6 +582,18 @@ function drawMeteoro(o) {
     ctx.textAlign = 'center';
     ctx.fillText('🌎', x, fallY);
     ctx.restore();
+
+    // texto de aviso piscando em cima do meteoro
+    ctx.save();
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(time * 22);
+    ctx.font = `${Math.max(8, 13*s)}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#c81e2a';
+    ctx.lineWidth = Math.max(1, 3*s);
+    ctx.strokeText('⚠️ CAINDO!', x, fallY - 32*s);
+    ctx.fillText('⚠️ CAINDO!', x, fallY - 32*s);
+    ctx.restore();
   } else {
     // já caiu: cratera fumegante no chão, obstáculo de verdade
     ctx.save();
