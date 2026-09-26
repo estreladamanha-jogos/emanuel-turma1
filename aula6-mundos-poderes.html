@@ -140,6 +140,10 @@ let folhas = [], gelos = [], brasas = [], estrelasBg = [], cadentes = [], planet
 let bearX = 70, bearDir = 1, parrotT = 0, cadenteT = 1;
 let mundoAnterior = 0, portalT = -1, portalNome = '', flashT = -1;
 
+/* ---------- poderes: G = dash (fica imune andando pro lado), L = luz roxa (destroi tudo na tela) ---------- */
+let dash = 0, dashCd = 0, luzT = -1, luzCd = 0;
+const DASH_DUR = .25, DASH_CD = 2, LUZ_CD = 4;
+
 /* ---------- portal (o "anel" que o Fagulha atravessa entre os mundos) ---------- */
 let gates = [], gateSpawned = [];
 const GATE_LEAD = (H + 60) - PY;   // distância (px) pra chegar bem no Fagulha na hora da troca
@@ -160,7 +164,20 @@ initDecor();
 function resetar() {
   estado = 'jogando'; t = 0; dist = 0; vidas = 3; invenc = 0; cristais = 0; shake = 0;
   jog.x = W / 2; jog.vx = 0; obst = []; gems = []; fx = []; spawnT = 1; gemT = 1;
+  dash = 0; dashCd = 0; luzT = -1; luzCd = 0;
   initDecor();
+}
+
+function ativarDash() {
+  if (estado !== 'jogando' || dashCd > 0) return;
+  dash = DASH_DUR; dashCd = DASH_CD;
+  burst(jog.x, PY, '#ffffff', 12, 140);
+}
+function ativarLuz() {
+  if (estado !== 'jogando' || luzCd > 0) return;
+  luzCd = LUZ_CD; luzT = .4;
+  for (const o of obst) o.morto = true;
+  burst(jog.x, PY, '#b060ff', 40, 280);
 }
 
 /* ---------- obstáculos (nos mundos mais avançados vem mais pedra junto, mas sempre com espaço pra passar) ---------- */
@@ -252,6 +269,8 @@ addEventListener('keydown', e => {
   if (estado !== 'jogando') { if (k === 'Space' || k === 'Enter' || k === 'KeyR') resetar(); return; }
   if (k === 'ArrowLeft' || k === 'KeyA') keys.left = true;
   if (k === 'ArrowRight' || k === 'KeyD') keys.right = true;
+  if (k === 'KeyG') ativarDash();
+  if (k === 'KeyL') ativarLuz();
 });
 addEventListener('keyup', e => {
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
@@ -271,8 +290,18 @@ function update(dt) {
   // ---- movimento do Fagulha ----
   const ax = (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
   if (ax) jog.dir = ax;
-  jog.vx += (ax * 300 - jog.vx) * Math.min(1, dt * 10);
-  jog.x = clamp(jog.x + jog.vx * dt, 34, W - 34);
+  if (dashCd > 0) dashCd -= dt;
+  if (luzCd > 0) luzCd -= dt;
+  if (dash > 0) {
+    dash -= dt;
+    jog.vx = jog.dir * 900;
+    jog.x = clamp(jog.x + jog.vx * dt, 34, W - 34);
+    burst(jog.x, PY + 12, '#ffffff', 1, 20);
+  } else {
+    jog.vx += (ax * 300 - jog.vx) * Math.min(1, dt * 10);
+    jog.x = clamp(jog.x + jog.vx * dt, 34, W - 34);
+  }
+  if (luzT >= 0) { luzT -= dt; if (luzT < 0) luzT = -1; }
 
   // ---- portal: aparece um pouco antes de cada 250 m e o Fagulha atravessa ----
   for (let i = 0; i < 3; i++) {
@@ -319,7 +348,7 @@ function update(dt) {
     if (o.morto) continue;
     const ox = o.x - o.w * .42, oy = o.y - o.h * .42, ow = o.w * .84, oh = o.h * .84;
     if (hb.x < ox + ow && hb.x + hb.w > ox && hb.y < oy + oh && hb.y + hb.h > oy) {
-      if (imune || invenc > 0) continue;
+      if (imune || invenc > 0 || dash > 0) continue;
       levarDano(o);
       break;
     }
@@ -444,6 +473,14 @@ function desenharFlash() {
   c.fillRect(0, 0, W, H);
 }
 
+function desenharLuz() {
+  if (luzT < 0) return;
+  const al = clamp(luzT / .4, 0, 1);
+  const g = c.createRadialGradient(jog.x, PY, 4, jog.x, PY, W);
+  g.addColorStop(0, 'rgba(230,190,255,' + al + ')'); g.addColorStop(1, 'rgba(160,60,255,0)');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+}
+
 function desenhar() {
   c.save();
   if (shake > 0) c.translate(rnd(-5, 5), rnd(-5, 5));
@@ -467,6 +504,7 @@ function desenhar() {
   for (const p of fx) { c.globalAlpha = clamp(p.life / p.max, 0, 1); c.fillStyle = p.cor; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
   desenharPortal();
+  desenharLuz();
   desenharFlash();
   c.restore();
   hud();
@@ -487,6 +525,21 @@ function hud() {
   c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(W - 14, 44, 6, 140);
   c.fillStyle = '#7CFF9E'; c.fillRect(W - 14, 44, 6, 140 * pr);
   texto(Math.floor(dist / 10) + ' m', W - 11, 196, 8, '#fff', 'right');
+
+  // ---- poderes ----
+  desenharPoder(20, H - 26, 'G', dashCd / DASH_CD, '#ffffff');
+  desenharPoder(60, H - 26, 'L', luzCd / LUZ_CD, '#b060ff');
+}
+function desenharPoder(x, y, letra, cd, cor) {
+  const pronto = cd <= 0;
+  c.fillStyle = pronto ? cor : 'rgba(255,255,255,.25)'; c.strokeStyle = '#0a0a18'; c.lineWidth = 2;
+  c.beginPath(); c.arc(x, y, 16, 0, 7); c.fill(); c.stroke();
+  if (!pronto) {
+    c.fillStyle = 'rgba(0,0,0,.55)';
+    c.beginPath(); c.moveTo(x, y); c.arc(x, y, 16, -Math.PI / 2, -Math.PI / 2 + clamp(cd, 0, 1) * 6.283); c.closePath(); c.fill();
+  }
+  c.font = 'bold 14px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = pronto ? '#0a0a18' : '#fff'; c.fillText(letra, x, y + 1);
 }
 
 function telas() {
