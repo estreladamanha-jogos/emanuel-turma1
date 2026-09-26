@@ -114,18 +114,19 @@ if (!c.roundRect) c.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); }
 const W = 420, H = 640;
 const PY = 190;                 // altura fixa do Fagulha na tela (o cenário é que sobe)
 const BASE_V = 230;             // velocidade da queda (pixels por segundo)
-const META = 1000;              // metros para vencer (1000 m = 4 mundos de 250 m)
+const META = 1250;              // metros para vencer (1250 m = 5 mundos de 250 m)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-/* ---------- os 4 mundos ---------- */
+/* ---------- os 5 mundos ---------- */
 const WORLDS = [
   { nome: 'FLORESTA', cor1: '#123d22', cor2: '#08220f', pilar: '#2f5c34', ring: '#7CFF9E' },
   { nome: 'GELEIRA', cor1: '#1c4a68', cor2: '#0a2436', pilar: '#3f7ea3', ring: '#bdf2ff' },
   { nome: 'VULCÃO', cor1: '#3d1108', cor2: '#1a0503', pilar: '#5c2318', ring: '#ff8a3c' },
-  { nome: 'ESPAÇO', cor1: '#0a0a22', cor2: '#020208', pilar: '#2a2a55', ring: '#c9a8ff' }
+  { nome: 'ESPAÇO', cor1: '#0a0a22', cor2: '#020208', pilar: '#2a2a55', ring: '#c9a8ff' },
+  { nome: 'ESCURO', cor1: '#050505', cor2: '#000000', pilar: '#161616', ring: '#ffe27a' }
 ];
-function mundoAtualIdx() { return clamp(Math.floor((dist / 10) / 250), 0, 3); }
+function mundoAtualIdx() { return clamp(Math.floor((dist / 10) / 250), 0, 4); }
 
 let estado = 'inicio';          // inicio | jogando | gameover | vitoria
 let t = 0, dist = 0, vel = BASE_V;
@@ -141,11 +142,12 @@ let bearX = 70, bearDir = 1, parrotT = 0, cadenteT = 1;
 let mundoAnterior = 0, portalT = -1, portalNome = '', flashT = -1;
 
 /* ---------- poderes: ESPAÇO usa o poder ativo, Q troca entre eles (dash, luz roxa, escudo) ---------- */
-const PODERES = ['dash', 'luz', 'escudo'];
-const PODER_COR = ['#ffffff', '#b060ff', '#7ec8ff'];
+const PODERES = ['dash', 'luz', 'escudo', 'lanterna'];
+const PODER_COR = ['#ffffff', '#b060ff', '#7ec8ff', '#ffe27a'];
 let poderAtivo = 0;
 let dash = 0, dashCd = 0, luzT = -1, luzCd = 0, escudoAtivo = false, escudoT = 0, escudoCd = 0;
-const DASH_DUR = .25, DASH_CD = 2, LUZ_CD = 4, ESCUDO_DUR = 10, ESCUDO_CD = 8;
+let lanternaAtiva = false, lanternaT = 0, lanternaCd = 0;
+const DASH_DUR = .25, DASH_CD = 2, LUZ_CD = 4, ESCUDO_DUR = 10, ESCUDO_CD = 8, LANTERNA_DUR = 3, LANTERNA_CD = 10;
 
 /* ---------- portal (o "anel" que o Fagulha atravessa entre os mundos) ---------- */
 let gates = [], gateSpawned = [];
@@ -160,7 +162,7 @@ function initDecor() {
   planetas = [{ x: 60, y: 100, r: 22, cor: '#8a6bd8' }, { x: W - 70, y: 240, r: 14, cor: '#d88a6b' }];
   bearX = 70; bearDir = 1; parrotT = 0; cadenteT = 1;
   mundoAnterior = 0; portalT = -1; flashT = -1;
-  gates = []; gateSpawned = [false, false, false];
+  gates = []; gateSpawned = [false, false, false, false];
 }
 initDecor();
 
@@ -168,6 +170,7 @@ function resetar() {
   estado = 'jogando'; t = 0; dist = 0; vidas = 3; invenc = 0; cristais = 0; shake = 0;
   jog.x = W / 2; jog.vx = 0; obst = []; gems = []; fx = []; spawnT = 1; gemT = 1;
   dash = 0; dashCd = 0; luzT = -1; luzCd = 0; escudoAtivo = false; escudoT = 0; escudoCd = 0;
+  lanternaAtiva = false; lanternaT = 0; lanternaCd = 0;
   initDecor();
 }
 
@@ -180,7 +183,8 @@ function usarPoderAtivo() {
   const p = PODERES[poderAtivo];
   if (p === 'dash') ativarDash();
   else if (p === 'luz') ativarLuz();
-  else ativarEscudo();
+  else if (p === 'escudo') ativarEscudo();
+  else ativarLanterna();
 }
 function ativarDash() {
   if (dashCd > 0) return;
@@ -198,6 +202,11 @@ function ativarEscudo() {
   escudoAtivo = true; escudoT = ESCUDO_DUR;
   burst(jog.x, PY, '#7ec8ff', 16, 120);
 }
+function ativarLanterna() {
+  if (lanternaAtiva || lanternaCd > 0) return;
+  lanternaAtiva = true; lanternaT = LANTERNA_DUR;
+  burst(jog.x, PY, '#ffe27a', 16, 140);
+}
 
 /* ---------- obstáculos (nos mundos mais avançados vem mais pedra junto, mas sempre com espaço pra passar) ---------- */
 function criarObstaculo() {
@@ -206,7 +215,7 @@ function criarObstaculo() {
   const x1 = rnd(30 + w1 / 2, W - 30 - w1 / 2);
   obst.push({ tp: 'pedra', x: x1, y: H + 40, w: w1, h: rnd(40, 56) });
 
-  const chance2 = [0, .35, .55, .7][idx];
+  const chance2 = [0, .35, .55, .7, .8][idx];
   if (Math.random() < chance2) {
     const w2 = rnd(50, 80);
     for (let tt = 0; tt < 8; tt++) {
@@ -252,13 +261,22 @@ function desenharAsteroide(o) {
   c.lineTo(o.w / 2 - 4, -o.h / 5); c.lineTo(o.w / 2, o.h / 2); c.closePath(); c.fill(); c.stroke();
   c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); c.moveTo(-o.w / 5, -o.h / 2 + 4); c.lineTo(o.w / 4, -o.h / 2 + 8); c.lineTo(0, -4); c.fill();
 }
+function desenharPedraEscura(o) {
+  const brilhando = lanternaAtiva;
+  c.fillStyle = '#2b2b33'; c.strokeStyle = brilhando ? '#ffe27a' : '#111116'; c.lineWidth = brilhando ? 4 : 2.4;
+  if (brilhando) { c.shadowColor = '#ffe27a'; c.shadowBlur = 14; }
+  c.beginPath(); c.moveTo(-o.w / 2, o.h / 2); c.lineTo(-o.w / 2 + 6, -o.h / 3); c.lineTo(-o.w / 5, -o.h / 2); c.lineTo(o.w / 4, -o.h / 2 + 4);
+  c.lineTo(o.w / 2 - 4, -o.h / 5); c.lineTo(o.w / 2, o.h / 2); c.closePath(); c.fill(); c.stroke();
+  c.shadowBlur = 0;
+}
 function desenharObstaculo(o) {
   const idx = mundoAtualIdx();
   c.save(); c.translate(o.x, o.y);
   if (idx === 0) desenharArvore(o);
   else if (idx === 1) desenharGeloObstaculo(o);
   else if (idx === 2) desenharBolaDeFogo(o);
-  else desenharAsteroide(o);
+  else if (idx === 3) desenharAsteroide(o);
+  else desenharPedraEscura(o);
   c.restore();
 }
 
@@ -313,6 +331,8 @@ function update(dt) {
   if (luzCd > 0) luzCd -= dt;
   if (escudoCd > 0) escudoCd -= dt;
   if (escudoAtivo) { escudoT -= dt; if (escudoT <= 0) { escudoAtivo = false; escudoCd = ESCUDO_CD; } }
+  if (lanternaCd > 0) lanternaCd -= dt;
+  if (lanternaAtiva) { lanternaT -= dt; if (lanternaT <= 0) { lanternaAtiva = false; lanternaCd = LANTERNA_CD; } }
   if (dash > 0) {
     dash -= dt;
     jog.vx = jog.dir * 900;
@@ -325,7 +345,7 @@ function update(dt) {
   if (luzT >= 0) { luzT -= dt; if (luzT < 0) luzT = -1; }
 
   // ---- portal: aparece um pouco antes de cada 250 m e o Fagulha atravessa ----
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const limiar = (i + 1) * 250 * 10;
     if (!gateSpawned[i] && dist >= limiar - GATE_LEAD) { gateSpawned[i] = true; gates.push({ y: H + 60, alvo: i + 1 }); }
   }
@@ -503,6 +523,14 @@ function desenharLuz() {
   c.fillStyle = g; c.fillRect(0, 0, W, H);
 }
 
+function desenharEscuridao() {
+  if (mundoAtualIdx() !== 4 || lanternaAtiva) return;
+  const raio = 90;
+  const g = c.createRadialGradient(jog.x, PY + 12, raio * .35, jog.x, PY + 12, raio);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.97)');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+}
+
 function desenhar() {
   c.save();
   if (shake > 0) c.translate(rnd(-5, 5), rnd(-5, 5));
@@ -530,6 +558,7 @@ function desenhar() {
   }
   for (const p of fx) { c.globalAlpha = clamp(p.life / p.max, 0, 1); c.fillStyle = p.cor; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
+  desenharEscuridao();
   desenharPortal();
   desenharLuz();
   desenharFlash();
@@ -554,9 +583,9 @@ function hud() {
   texto(Math.floor(dist / 10) + ' m', W - 11, 196, 8, '#fff', 'right');
 
   // ---- poderes ----
-  const cds = [dashCd / DASH_CD, luzCd / LUZ_CD, escudoCd / ESCUDO_CD];
-  const letras = ['D', 'L', 'E'];
-  for (let i = 0; i < 3; i++) desenharPoder(24 + i * 42, H - 28, letras[i], cds[i], PODER_COR[i], i === poderAtivo);
+  const cds = [dashCd / DASH_CD, luzCd / LUZ_CD, escudoCd / ESCUDO_CD, lanternaCd / LANTERNA_CD];
+  const letras = ['D', 'L', 'E', 'F'];
+  for (let i = 0; i < 4; i++) desenharPoder(24 + i * 42, H - 28, letras[i], cds[i], PODER_COR[i], i === poderAtivo);
 }
 function desenharPoder(x, y, letra, cd, cor, ativo) {
   const pronto = cd <= 0;
