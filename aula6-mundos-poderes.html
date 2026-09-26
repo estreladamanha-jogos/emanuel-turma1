@@ -114,9 +114,24 @@ if (!c.roundRect) c.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); }
 const W = 420, H = 640;
 const PY = 190;                 // altura fixa do Fagulha na tela (o cenário é que sobe)
 const BASE_V = 230;             // velocidade da queda (pixels por segundo)
-const META = 600;
+const META = 1000;              // metros para vencer (1000 m = 4 mundos de 250 m)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* ---------- os 4 mundos ---------- */
+const WORLDS = [
+  { nome: 'FLORESTA', cor1: '#123d22', cor2: '#08220f', pilar: '#2f5c34', ring: '#7CFF9E' },
+  { nome: 'GELEIRA', cor1: '#1c4a68', cor2: '#0a2436', pilar: '#3f7ea3', ring: '#bdf2ff' },
+  { nome: 'VULCÃO', cor1: '#3d1108', cor2: '#1a0503', pilar: '#5c2318', ring: '#ff8a3c' },
+  { nome: 'ESPAÇO', cor1: '#0a0a22', cor2: '#020208', pilar: '#2a2a55', ring: '#c9a8ff' }
+];
+const ROCK_COL = [
+  { top: '#6d8a5e', line: '#33422a' },  // floresta - pedra com musgo
+  { top: '#a9c9d9', line: '#3c5866' },  // geleira - pedra de gelo
+  { top: '#5c3a33', line: '#2a1310' },  // vulcão - pedra queimada
+  { top: '#7a75a0', line: '#302c4a' }   // espaço - asteroide
+];
+function mundoAtualIdx() { return clamp(Math.floor((dist / 10) / 250), 0, 3); }
 
 let estado = 'inicio';          // inicio | jogando | gameover | vitoria
 let t = 0, dist = 0, vel = BASE_V;
@@ -126,9 +141,27 @@ let obst = [], gems = [], fx = [];
 let spawnT = 1, gemT = 1;
 const keys = { left: false, right: false };
 
+/* ---------- decorações de cada mundo ---------- */
+let folhas = [], gelos = [], brasas = [], estrelasBg = [], cadentes = [], planetas = [];
+let bearX = 70, bearDir = 1, parrotT = 0, cadenteT = 1;
+let mundoAnterior = 0, portalT = -1, portalNome = '';
+
+function initDecor() {
+  folhas = Array.from({ length: 14 }, () => ({ x: rnd(0, W), y: rnd(0, H), vy: rnd(18, 40), rot: rnd(0, 6.28), vr: rnd(-1, 1), size: rnd(6, 11) }));
+  gelos = Array.from({ length: 12 }, () => ({ x: rnd(0, W), y: rnd(0, H), vy: rnd(-16, -6), size: rnd(4, 9) }));
+  brasas = Array.from({ length: 16 }, () => ({ x: rnd(0, W), y: rnd(0, H), vy: rnd(-55, -22), vx: rnd(-6, 6), size: rnd(2, 4.5) }));
+  estrelasBg = Array.from({ length: 44 }, () => ({ x: rnd(0, W), y: rnd(0, H), size: rnd(.6, 2), ph: rnd(0, 6.28) }));
+  cadentes = [];
+  planetas = [{ x: 60, y: 100, r: 22, cor: '#8a6bd8' }, { x: W - 70, y: 240, r: 14, cor: '#d88a6b' }];
+  bearX = 70; bearDir = 1; parrotT = 0; cadenteT = 1;
+  mundoAnterior = 0; portalT = -1;
+}
+initDecor();
+
 function resetar() {
   estado = 'jogando'; t = 0; dist = 0; vidas = 3; invenc = 0; cristais = 0; shake = 0;
   jog.x = W / 2; jog.vx = 0; obst = []; gems = []; fx = []; spawnT = 1; gemT = 1;
+  initDecor();
 }
 
 /* ---------- obstáculos ---------- */
@@ -137,9 +170,10 @@ function criarObstaculo() {
 }
 
 function desenharObstaculo(o) {
+  const rc = ROCK_COL[mundoAtualIdx()];
   c.save(); c.translate(o.x, o.y);
   {
-    c.fillStyle = '#6d6a80'; c.strokeStyle = '#34324a'; c.lineWidth = 2.4;
+    c.fillStyle = rc.top; c.strokeStyle = rc.line; c.lineWidth = 2.4;
     c.beginPath(); c.moveTo(-o.w / 2, o.h / 2); c.lineTo(-o.w / 2 + 6, -o.h / 3); c.lineTo(-o.w / 5, -o.h / 2); c.lineTo(o.w / 4, -o.h / 2 + 4);
     c.lineTo(o.w / 2 - 4, -o.h / 5); c.lineTo(o.w / 2, o.h / 2); c.closePath(); c.fill(); c.stroke();
     c.fillStyle = 'rgba(255,255,255,.14)'; c.beginPath(); c.moveTo(-o.w / 5, -o.h / 2 + 4); c.lineTo(o.w / 4, -o.h / 2 + 8); c.lineTo(0, -4); c.fill();
@@ -152,7 +186,19 @@ function burst(x, y, cor, n, v) {
   for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = rnd(30, v || 140); fx.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(.3, .7), max: .7, cor, r: rnd(1.5, 3.6) }); }
 }
 
-/* ---------- mundos (M1+) ---------- */
+/* ---------- animação de cada mundo (algo se mexendo) ---------- */
+function atualizarDecor(dt) {
+  for (const f of folhas) { f.y += f.vy * dt; f.x += Math.sin(t * 1.5 + f.rot) * 12 * dt; f.rot += f.vr * dt; if (f.y > H + 10) { f.y = -10; f.x = rnd(0, W); } }
+  for (const g of gelos) { g.y += g.vy * dt; if (g.y < -10) { g.y = H + 10; g.x = rnd(0, W); } }
+  for (const b of brasas) { b.y += b.vy * dt; b.x += b.vx * dt; if (b.y < -10) { b.y = H + 10; b.x = rnd(0, W); } }
+  bearX += bearDir * 34 * dt; if (bearX > W - 60 || bearX < 40) bearDir *= -1;
+  parrotT += dt;
+  for (const p of planetas) p.x += Math.sin(t * .2 + p.r) * 4 * dt;
+  cadenteT -= dt;
+  if (cadenteT <= 0) { cadentes.push({ x: rnd(0, W * .6), y: rnd(0, H * .3), vx: rnd(160, 260), vy: rnd(60, 110), life: 1 }); cadenteT = rnd(1.5, 3.5); }
+  for (const cd of cadentes) { cd.x += cd.vx * dt; cd.y += cd.vy * dt; cd.life -= dt * .6; }
+  cadentes = cadentes.filter(cd => cd.life > 0 && cd.x < W + 40);
+}
 
 /* ---------- entrada ---------- */
 addEventListener('keydown', e => {
@@ -175,6 +221,7 @@ function update(dt) {
   dist += vel * dt;
   if (invenc > 0) invenc -= dt;
   if (shake > 0) shake -= dt;
+  atualizarDecor(dt);
 
   // ---- movimento do Fagulha ----
   const ax = (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
@@ -182,7 +229,14 @@ function update(dt) {
   jog.vx += (ax * 300 - jog.vx) * Math.min(1, dt * 10);
   jog.x = clamp(jog.x + jog.vx * dt, 34, W - 34);
 
-  // ---- mundos: portais a cada 250 m ----
+  // ---- mundos: troca sozinho a cada 250 m ----
+  const wi = mundoAtualIdx();
+  if (wi !== mundoAnterior) {
+    mundoAnterior = wi;
+    portalT = 0; portalNome = WORLDS[wi].nome;
+    burst(jog.x, PY, WORLDS[wi].ring, 34, 240);
+  }
+  if (portalT >= 0) { portalT += dt; if (portalT > 2.4) portalT = -1; }
 
   // ---- obstáculos ----
   spawnT -= dt;
@@ -231,11 +285,83 @@ function levarDano(o) {
   if (vidas <= 0) estado = 'gameover';
 }
 
+/* ---------- desenho de cada mundo ---------- */
+function desenharFloresta() {
+  for (const f of folhas) {
+    c.save(); c.translate(f.x, f.y); c.rotate(f.rot);
+    c.fillStyle = '#4fbf5a'; c.beginPath(); c.ellipse(0, 0, f.size, f.size * .55, 0, 0, 7); c.fill();
+    c.strokeStyle = '#2c7a34'; c.lineWidth = 1; c.beginPath(); c.moveTo(-f.size, 0); c.lineTo(f.size, 0); c.stroke();
+    c.restore();
+  }
+  const px = W / 2 + Math.sin(parrotT * .6) * 140, py = 90 + Math.sin(parrotT * 1.3) * 30, wf = Math.sin(parrotT * 12);
+  c.save(); c.translate(px, py);
+  c.fillStyle = '#e0463c'; c.beginPath(); c.ellipse(0, 0, 13, 9, 0, 0, 7); c.fill();
+  c.fillStyle = '#3a6fe0'; c.beginPath(); c.ellipse(-9, -3, 7, 6, 0, 0, 7); c.fill();
+  c.fillStyle = '#ffcf3c'; c.beginPath(); c.moveTo(-16, -3); c.lineTo(-24, -1); c.lineTo(-16, 2); c.closePath(); c.fill();
+  c.fillStyle = '#c9382f'; c.beginPath(); c.ellipse(9, 0, 6 + wf * 3, 3, .3, 0, 7); c.fill();
+  c.restore();
+}
+function desenharGeleira() {
+  for (const g of gelos) {
+    c.save(); c.translate(g.x, g.y); c.fillStyle = 'rgba(210,240,255,.75)'; c.strokeStyle = '#fff';
+    c.beginPath(); c.moveTo(0, -g.size); c.lineTo(g.size, 0); c.lineTo(0, g.size); c.lineTo(-g.size, 0); c.closePath(); c.fill(); c.stroke();
+    c.restore();
+  }
+  c.save(); c.translate(bearX, H - 66); c.scale(bearDir, 1);
+  c.fillStyle = '#f2f7fa'; c.strokeStyle = '#b9d4de'; c.lineWidth = 2;
+  c.beginPath(); c.ellipse(0, 0, 22, 14, 0, 0, 7); c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(20, -10, 11, 9, 0, 0, 7); c.fill(); c.stroke();
+  c.beginPath(); c.arc(27, -18, 4, 0, 7); c.fill(); c.stroke();
+  c.beginPath(); c.arc(-16, 10, 6, 0, 7); c.fill(); c.beginPath(); c.arc(16, 10, 6, 0, 7); c.fill();
+  c.fillStyle = '#333'; c.beginPath(); c.arc(30, -12, 1.6, 0, 7); c.fill();
+  c.restore();
+}
+function desenharVulcao() {
+  for (const b of brasas) {
+    const al = clamp(b.y / H, .2, 1);
+    c.globalAlpha = al; c.fillStyle = '#ffb347'; c.beginPath(); c.arc(b.x, b.y, b.size, 0, 7); c.fill();
+  }
+  c.globalAlpha = 1;
+  const glow = c.createLinearGradient(0, H - 60, 0, H);
+  glow.addColorStop(0, 'rgba(255,90,20,0)'); glow.addColorStop(1, 'rgba(255,110,30,' + (.25 + Math.sin(t * 4) * .08) + ')');
+  c.fillStyle = glow; c.fillRect(0, H - 60, W, 60);
+}
+function desenharEspaco() {
+  for (const s of estrelasBg) { c.globalAlpha = .4 + Math.sin(t * 3 + s.ph) * .4; c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x, s.y, s.size, 0, 7); c.fill(); }
+  c.globalAlpha = 1;
+  for (const p of planetas) { c.fillStyle = p.cor; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.arc(p.x + p.r * .3, p.y - p.r * .2, p.r * .8, 0, 7); c.fill(); }
+  for (const cd of cadentes) {
+    c.globalAlpha = clamp(cd.life, 0, 1); c.strokeStyle = '#fff'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(cd.x, cd.y); c.lineTo(cd.x - cd.vx * .06, cd.y - cd.vy * .06); c.stroke();
+  }
+  c.globalAlpha = 1;
+}
+function desenharDecoracoes() {
+  const idx = mundoAtualIdx();
+  if (idx === 0) desenharFloresta();
+  else if (idx === 1) desenharGeleira();
+  else if (idx === 2) desenharVulcao();
+  else desenharEspaco();
+}
+
 /* ---------- desenho ---------- */
 function fundo() {
-  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1a1236'); g.addColorStop(1, '#0d0a1f'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-  c.fillStyle = '#2a2350'; for (let k = -1; k < 8; k++) { const y = k * 100 - (dist % 100); c.fillRect(0, y, 26, 100); c.fillRect(W - 26, y, 26, 100); }
-  c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 2; for (let k = -1; k < 8; k++) { const y = k * 100 - (dist % 100); c.strokeRect(2, y + 2, 22, 96); c.strokeRect(W - 24, y + 2, 22, 96); }
+  const mundo = WORLDS[mundoAtualIdx()];
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, mundo.cor1); g.addColorStop(1, mundo.cor2); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  desenharDecoracoes();
+  c.fillStyle = mundo.pilar; for (let k = -1; k < 8; k++) { const y = k * 100 - (dist % 100); c.fillRect(0, y, 26, 100); c.fillRect(W - 26, y, 26, 100); }
+  c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 2; for (let k = -1; k < 8; k++) { const y = k * 100 - (dist % 100); c.strokeRect(2, y + 2, 22, 96); c.strokeRect(W - 24, y + 2, 22, 96); }
+}
+
+function desenharPortal() {
+  if (portalT < 0) return;
+  const cor = WORLDS[mundoAtualIdx()].ring;
+  const p = clamp(portalT / .6, 0, 1);
+  c.save(); c.globalAlpha = 1 - p; c.strokeStyle = cor; c.lineWidth = 6;
+  c.beginPath(); c.arc(jog.x, PY + 12, 20 + p * 170, 0, 7); c.stroke(); c.restore();
+  let al = 1;
+  if (portalT < .3) al = portalT / .3; else if (portalT > 1.8) al = clamp((2.4 - portalT) / .6, 0, 1);
+  c.save(); c.globalAlpha = al; texto(portalNome, W / 2, H / 2 - 40, 22, cor); c.restore();
 }
 
 function desenhar() {
@@ -259,6 +385,7 @@ function desenhar() {
   }
   for (const p of fx) { c.globalAlpha = clamp(p.life / p.max, 0, 1); c.fillStyle = p.cor; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
+  desenharPortal();
   c.restore();
   hud();
   telas();
@@ -294,7 +421,7 @@ function telas() {
     if (Math.floor(performance.now() / 500) % 2) texto('ESPAÇO: JOGAR DE NOVO', W / 2, 400, 11, '#fff');
   } else if (estado === 'vitoria') {
     c.fillStyle = 'rgba(0,20,10,.78)'; c.fillRect(0, 0, W, H);
-    texto('CHEGOU AO FUNDO!', W / 2, 170, 20, '#7CFF9E');
+    texto('VOCÊ GANHOU!', W / 2, 170, 24, '#7CFF9E');
     drawFagulha(c, W / 2, 300, .95, performance.now() / 1000, { pose: 'cheer', glow: '#7CFF9E' });
     texto('💎 ' + cristais, W / 2, 470, 16, '#7af6ff');
     if (Math.floor(performance.now() / 500) % 2) texto('ESPAÇO: JOGAR DE NOVO', W / 2, 540, 11, '#fff');
@@ -302,7 +429,7 @@ function telas() {
 }
 
 /* ---------- laço principal ---------- */
-let ultimo = performance.now(), fimT = 0;
+let ultimo = performance.now();
 function frame(now) {
   const dt = Math.max(0, Math.min(.033, (now - ultimo) / 1000)); ultimo = now;
   try {
