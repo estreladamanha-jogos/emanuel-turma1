@@ -146,6 +146,10 @@ let folhas = [], gelos = [], brasas = [], estrelasBg = [], cadentes = [], planet
 let bearX = 70, bearDir = 1, parrotT = 0, cadenteT = 1;
 let mundoAnterior = 0, portalT = -1, portalNome = '';
 
+/* ---------- portal (o "anel" que o Fagulha atravessa entre os mundos) ---------- */
+let gates = [], gateSpawned = [];
+const GATE_LEAD = (H + 60) - PY;   // distância (px) pra chegar bem no Fagulha na hora da troca
+
 function initDecor() {
   folhas = Array.from({ length: 14 }, () => ({ x: rnd(0, W), y: rnd(0, H), vy: rnd(18, 40), rot: rnd(0, 6.28), vr: rnd(-1, 1), size: rnd(6, 11) }));
   gelos = Array.from({ length: 12 }, () => ({ x: rnd(0, W), y: rnd(0, H), vy: rnd(-16, -6), size: rnd(4, 9) }));
@@ -155,6 +159,7 @@ function initDecor() {
   planetas = [{ x: 60, y: 100, r: 22, cor: '#8a6bd8' }, { x: W - 70, y: 240, r: 14, cor: '#d88a6b' }];
   bearX = 70; bearDir = 1; parrotT = 0; cadenteT = 1;
   mundoAnterior = 0; portalT = -1;
+  gates = []; gateSpawned = [false, false, false];
 }
 initDecor();
 
@@ -229,7 +234,15 @@ function update(dt) {
   jog.vx += (ax * 300 - jog.vx) * Math.min(1, dt * 10);
   jog.x = clamp(jog.x + jog.vx * dt, 34, W - 34);
 
-  // ---- mundos: troca sozinho a cada 250 m ----
+  // ---- portal: aparece um pouco antes de cada 250 m e o Fagulha atravessa ----
+  for (let i = 0; i < 3; i++) {
+    const limiar = (i + 1) * 250 * 10;
+    if (!gateSpawned[i] && dist >= limiar - GATE_LEAD) { gateSpawned[i] = true; gates.push({ y: H + 60, alvo: i + 1 }); }
+  }
+  for (const gt of gates) gt.y -= vel * dt;
+  gates = gates.filter(gt => gt.y > -100);
+
+  // ---- mundos: troca ao atravessar o portal (a cada 250 m) ----
   const wi = mundoAtualIdx();
   if (wi !== mundoAnterior) {
     mundoAnterior = wi;
@@ -353,6 +366,26 @@ function fundo() {
   c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 2; for (let k = -1; k < 8; k++) { const y = k * 100 - (dist % 100); c.strokeRect(2, y + 2, 22, 96); c.strokeRect(W - 24, y + 2, 22, 96); }
 }
 
+function desenharGate(gt) {
+  const cor = WORLDS[gt.alvo].ring;
+  c.save(); c.translate(W / 2, gt.y);
+  const rx = W * .42, ry = 26;
+  const brilho = c.createRadialGradient(0, 0, 4, 0, 0, rx);
+  brilho.addColorStop(0, cor); brilho.addColorStop(1, 'rgba(0,0,0,0)');
+  c.globalAlpha = .35; c.fillStyle = brilho; c.beginPath(); c.ellipse(0, 0, rx, ry * 2.4, 0, 0, 7); c.fill();
+  c.globalAlpha = 1;
+  for (let k = 0; k < 3; k++) {
+    c.strokeStyle = cor; c.lineWidth = 4 - k; c.globalAlpha = 1 - k * .25;
+    c.beginPath(); c.ellipse(0, 0, rx - k * 10, ry - k * 3, 0, 0, 7); c.stroke();
+  }
+  c.globalAlpha = 1; c.fillStyle = '#fff';
+  for (let k = 0; k < 8; k++) {
+    const a = t * 3 + k * (Math.PI / 4);
+    c.beginPath(); c.arc(Math.cos(a) * rx * .9, Math.sin(a) * ry * .9, 2, 0, 7); c.fill();
+  }
+  c.restore();
+}
+
 function desenharPortal() {
   if (portalT < 0) return;
   const cor = WORLDS[mundoAtualIdx()].ring;
@@ -368,6 +401,7 @@ function desenhar() {
   c.save();
   if (shake > 0) c.translate(rnd(-5, 5), rnd(-5, 5));
   fundo();
+  for (const gt of gates) desenharGate(gt);
 
   for (const g of gems) {
     c.save(); c.translate(g.x, g.y); c.rotate(Math.sin(t * 3 + g.x) * .3);
