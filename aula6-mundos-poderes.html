@@ -125,12 +125,6 @@ const WORLDS = [
   { nome: 'VULCÃO', cor1: '#3d1108', cor2: '#1a0503', pilar: '#5c2318', ring: '#ff8a3c' },
   { nome: 'ESPAÇO', cor1: '#0a0a22', cor2: '#020208', pilar: '#2a2a55', ring: '#c9a8ff' }
 ];
-const ROCK_COL = [
-  { top: '#6d8a5e', line: '#33422a' },  // floresta - pedra com musgo
-  { top: '#a9c9d9', line: '#3c5866' },  // geleira - pedra de gelo
-  { top: '#5c3a33', line: '#2a1310' },  // vulcão - pedra queimada
-  { top: '#7a75a0', line: '#302c4a' }   // espaço - asteroide
-];
 function mundoAtualIdx() { return clamp(Math.floor((dist / 10) / 250), 0, 3); }
 
 let estado = 'inicio';          // inicio | jogando | gameover | vitoria
@@ -186,15 +180,49 @@ function criarObstaculo() {
   }
 }
 
-function desenharObstaculo(o) {
-  const rc = ROCK_COL[mundoAtualIdx()];
-  c.save(); c.translate(o.x, o.y);
-  {
-    c.fillStyle = rc.top; c.strokeStyle = rc.line; c.lineWidth = 2.4;
-    c.beginPath(); c.moveTo(-o.w / 2, o.h / 2); c.lineTo(-o.w / 2 + 6, -o.h / 3); c.lineTo(-o.w / 5, -o.h / 2); c.lineTo(o.w / 4, -o.h / 2 + 4);
-    c.lineTo(o.w / 2 - 4, -o.h / 5); c.lineTo(o.w / 2, o.h / 2); c.closePath(); c.fill(); c.stroke();
-    c.fillStyle = 'rgba(255,255,255,.14)'; c.beginPath(); c.moveTo(-o.w / 5, -o.h / 2 + 4); c.lineTo(o.w / 4, -o.h / 2 + 8); c.lineTo(0, -4); c.fill();
+/* ---------- obstáculo de cada mundo: árvore, gelo, bola de fogo e asteroide ---------- */
+function desenharArvore(o) {
+  const tw = o.w * .22;
+  c.fillStyle = '#5b3a22'; c.strokeStyle = '#33200f'; c.lineWidth = 2;
+  c.fillRect(-tw / 2, o.h * .08, tw, o.h / 2); c.strokeRect(-tw / 2, o.h * .08, tw, o.h / 2);
+  const cy = -o.h * .12, cr = o.w / 2;
+  for (const [dx, dy, r] of [[0, -cr * .5, cr], [-cr * .6, 0, cr * .68], [cr * .6, 0, cr * .68]]) {
+    c.fillStyle = '#357a3e'; c.strokeStyle = '#1f4a26'; c.lineWidth = 2;
+    c.beginPath(); c.arc(dx, cy + dy, r, 0, 7); c.fill(); c.stroke();
   }
+  c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); c.arc(-cr * .3, cy - cr * .3, cr * .35, 0, 7); c.fill();
+}
+function desenharGeloObstaculo(o) {
+  c.fillStyle = '#bfe6f5'; c.strokeStyle = '#eafcff'; c.lineWidth = 2.4;
+  c.beginPath(); c.moveTo(0, -o.h / 2); c.lineTo(o.w / 2, -o.h * .1); c.lineTo(o.w / 3, o.h / 2); c.lineTo(-o.w / 3, o.h / 2); c.lineTo(-o.w / 2, -o.h * .1); c.closePath();
+  c.fill(); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.moveTo(-o.w * .12, -o.h * .3); c.lineTo(o.w * .06, -o.h * .05); c.lineTo(-o.w * .06, o.h * .3); c.lineTo(-o.w * .22, o.h * .05); c.closePath(); c.fill();
+}
+function desenharBolaDeFogo(o) {
+  const r = Math.min(o.w, o.h) / 2;
+  const flick = 1 + Math.sin(t * 10 + o.x) * .08;
+  const g = c.createRadialGradient(0, 0, r * .1, 0, 0, r * flick);
+  g.addColorStop(0, '#fff3c4'); g.addColorStop(.4, '#ffb23c'); g.addColorStop(1, '#c92e0e');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, r * flick, 0, 7); c.fill();
+  for (let k = 0; k < 5; k++) {
+    const a = t * 6 + k * (Math.PI * 2 / 5);
+    c.fillStyle = 'rgba(255,190,60,.55)';
+    c.beginPath(); c.arc(Math.cos(a) * r * .7, Math.sin(a) * r * .7 - r * .3, r * .22, 0, 7); c.fill();
+  }
+}
+function desenharAsteroide(o) {
+  c.fillStyle = '#7a75a0'; c.strokeStyle = '#302c4a'; c.lineWidth = 2.4;
+  c.beginPath(); c.moveTo(-o.w / 2, o.h / 2); c.lineTo(-o.w / 2 + 6, -o.h / 3); c.lineTo(-o.w / 5, -o.h / 2); c.lineTo(o.w / 4, -o.h / 2 + 4);
+  c.lineTo(o.w / 2 - 4, -o.h / 5); c.lineTo(o.w / 2, o.h / 2); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); c.moveTo(-o.w / 5, -o.h / 2 + 4); c.lineTo(o.w / 4, -o.h / 2 + 8); c.lineTo(0, -4); c.fill();
+}
+function desenharObstaculo(o) {
+  const idx = mundoAtualIdx();
+  c.save(); c.translate(o.x, o.y);
+  if (idx === 0) desenharArvore(o);
+  else if (idx === 1) desenharGeloObstaculo(o);
+  else if (idx === 2) desenharBolaDeFogo(o);
+  else desenharAsteroide(o);
   c.restore();
 }
 
