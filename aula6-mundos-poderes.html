@@ -144,7 +144,7 @@ const keys = { left: false, right: false };
 /* ---------- decorações de cada mundo ---------- */
 let folhas = [], gelos = [], brasas = [], estrelasBg = [], cadentes = [], planetas = [];
 let bearX = 70, bearDir = 1, parrotT = 0, cadenteT = 1;
-let mundoAnterior = 0, portalT = -1, portalNome = '';
+let mundoAnterior = 0, portalT = -1, portalNome = '', flashT = -1;
 
 /* ---------- portal (o "anel" que o Fagulha atravessa entre os mundos) ---------- */
 let gates = [], gateSpawned = [];
@@ -158,7 +158,7 @@ function initDecor() {
   cadentes = [];
   planetas = [{ x: 60, y: 100, r: 22, cor: '#8a6bd8' }, { x: W - 70, y: 240, r: 14, cor: '#d88a6b' }];
   bearX = 70; bearDir = 1; parrotT = 0; cadenteT = 1;
-  mundoAnterior = 0; portalT = -1;
+  mundoAnterior = 0; portalT = -1; flashT = -1;
   gates = []; gateSpawned = [false, false, false];
 }
 initDecor();
@@ -169,9 +169,21 @@ function resetar() {
   initDecor();
 }
 
-/* ---------- obstáculos ---------- */
+/* ---------- obstáculos (nos mundos mais avançados vem mais pedra junto, mas sempre com espaço pra passar) ---------- */
 function criarObstaculo() {
-  obst.push({ tp: 'pedra', x: rnd(50, W - 50), y: H + 40, w: rnd(50, 88), h: rnd(40, 56), sd: Math.random() });
+  const idx = mundoAtualIdx();
+  const w1 = rnd(50, 88);
+  const x1 = rnd(30 + w1 / 2, W - 30 - w1 / 2);
+  obst.push({ tp: 'pedra', x: x1, y: H + 40, w: w1, h: rnd(40, 56) });
+
+  const chance2 = [0, .35, .55, .7][idx];
+  if (Math.random() < chance2) {
+    const w2 = rnd(50, 80);
+    for (let tt = 0; tt < 8; tt++) {
+      const x2 = rnd(30 + w2 / 2, W - 30 - w2 / 2);
+      if (Math.abs(x2 - x1) > (w1 + w2) / 2 + 75) { obst.push({ tp: 'pedra', x: x2, y: H + 40, w: w2, h: rnd(40, 56) }); break; }
+    }
+  }
 }
 
 function desenharObstaculo(o) {
@@ -222,7 +234,7 @@ addEventListener('keyup', e => {
 function update(dt) {
   if (estado !== 'jogando') return;
   t += dt;
-  vel = BASE_V;
+  vel = BASE_V * Math.pow(1.16, mundoAtualIdx());   // cada mundo é 16% mais rápido que o anterior
   dist += vel * dt;
   if (invenc > 0) invenc -= dt;
   if (shake > 0) shake -= dt;
@@ -246,10 +258,11 @@ function update(dt) {
   const wi = mundoAtualIdx();
   if (wi !== mundoAnterior) {
     mundoAnterior = wi;
-    portalT = 0; portalNome = WORLDS[wi].nome;
+    portalT = 0; portalNome = WORLDS[wi].nome; flashT = .5;
     burst(jog.x, PY, WORLDS[wi].ring, 34, 240);
   }
   if (portalT >= 0) { portalT += dt; if (portalT > 2.4) portalT = -1; }
+  if (flashT >= 0) { flashT -= dt; if (flashT < 0) flashT = -1; }
 
   // ---- obstáculos ----
   spawnT -= dt;
@@ -397,6 +410,12 @@ function desenharPortal() {
   c.save(); c.globalAlpha = al; texto(portalNome, W / 2, H / 2 - 40, 22, cor); c.restore();
 }
 
+function desenharFlash() {
+  if (flashT < 0) return;
+  c.fillStyle = 'rgba(255,255,255,' + clamp(flashT / .5, 0, 1) + ')';
+  c.fillRect(0, 0, W, H);
+}
+
 function desenhar() {
   c.save();
   if (shake > 0) c.translate(rnd(-5, 5), rnd(-5, 5));
@@ -420,6 +439,7 @@ function desenhar() {
   for (const p of fx) { c.globalAlpha = clamp(p.life / p.max, 0, 1); c.fillStyle = p.cor; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
   desenharPortal();
+  desenharFlash();
   c.restore();
   hud();
   telas();
