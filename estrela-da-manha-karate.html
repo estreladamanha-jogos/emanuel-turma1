@@ -200,12 +200,13 @@ function lay(a,y){const[s,sp,c,c2,f]=a,o=Math.round(cam)*f;for(let x=Math.floor(
 function back(){TH2[lv].b.forEach((a,k)=>{lay(a,GY);if(k<2&&lv!==2){cx.fillStyle=`rgba(${sbot.join(',')},${k?.12:.28})`;cx.fillRect(0,GY-170,W,170)}})}
 function front(){const g=cx.createLinearGradient(0,GY,0,H);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');cx.fillStyle=g;cx.fillRect(0,GY,W,H-GY);const[s,sp,c,f]=TH2[lv].f,o=Math.round(cam)*f;for(let x=Math.floor(o/sp)*sp-sp;x<o+W+2*sp;x+=sp)SHP[s](x-o,Math.round(x/sp),sh(c),H+4)}
 function lightFx(cm){
-if(lv!==5&&lv!==7)return;
-const sp=lv===5?170:160,col=lv===5?'255,221,130':'255,110,60',off=((cm%sp)+sp)%sp;
+const LF={0:[210,'255,200,120',70],3:[180,'255,190,110',65],5:[170,'255,221,130',90],7:[160,'255,110,60',90]}[lv];
+if(!LF)return;
+const[sp,col,rad]=LF,off=((cm%sp)+sp)%sp;
 for(let x=-off-sp;x<W+sp;x+=sp){
-  const gy=GY-150,g=cx.createRadialGradient(x,gy,4,x,gy,90);
-  g.addColorStop(0,`rgba(${col},.22)`);g.addColorStop(1,`rgba(${col},0)`);
-  cx.fillStyle=g;cx.fillRect(x-90,gy-90,180,180);
+  const gy=GY-150,g=cx.createRadialGradient(x,gy,4,x,gy,rad);
+  g.addColorStop(0,`rgba(${col},.2)`);g.addColorStop(1,`rgba(${col},0)`);
+  cx.fillStyle=g;cx.fillRect(x-rad,gy-rad,rad*2,rad*2);
 }}
 function bossVignette(){
 if(bossDark<=0)return;
@@ -337,6 +338,7 @@ P.vy+=.5*k;P.x=clamp(P.x+P.vx*k,14,LEN-14);
 const py0=P.y,vy0=P.vy;P.y+=P.vy*k;let landed=false;
 if(vy0>=0){for(const q of currentPlats()){if(P.x>=q.x-14&&P.x<=q.x+q.w+14&&py0<=q.y+2&&P.y>=q.y){P.y=q.y;P.vy=0;landed=true;break}}}
 if(!landed&&P.y>=GY){P.y=GY;P.vy=0}
+if(vy0>2&&P.vy===0){for(let i=0;i<5;i++)parts.push({x:P.x+rnd(-8,8),y:P.y,vx:rnd(-1.5,1.5),vy:rnd(-1.6,-.3),l:.6,c:'rgba(210,195,165,.8)',s:rnd(2,4)})}
 if(P.atk){const a=P.atk,A=AT[a.n];a.t+=dt;
 while(a.f<A.fr.length&&a.t>=A.fr[a.f]){a.t-=A.fr[a.f];a.f++;if(a.f===A.h&&!a.did){a.did=1;doHit(a)}}
 if(a.f>=A.fr.length){if(P.q&&CH[a.n])startAtk(CH[a.n]);else P.atk=null;P.q=0}}
