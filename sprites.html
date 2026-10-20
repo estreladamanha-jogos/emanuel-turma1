@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Estrela da Manhã - Sprites do Karatê</title>
+<style>
+  /* ===== Base ===== */
+  :root { --bg: #10141f; --painel: #1b2233; --borda: #2c3550; --ouro: #f4d03f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: #fff; font-family: 'Courier New', monospace; }
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 14px; }
+  h1 { margin: 0; font-size: 18px; color: var(--ouro); }
+  h1 small { display: block; font-size: 11px; color: #9aa4c0; font-weight: normal; }
+  nav { display: flex; gap: 6px; }
+  button {
+    background: var(--painel); color: #fff; border: 2px solid var(--borda); border-radius: 6px;
+    padding: 6px 12px; font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  button.ativo { background: var(--ouro); color: #2a1f00; border-color: var(--ouro); font-weight: bold; }
+  main { padding: 0 14px 120px; }
+  .tela[hidden] { display: none; }
+
+  /* ===== Arena (jogo de teste) ===== */
+  #arena {
+    display: block; width: min(100%, 960px); margin: 0 auto; aspect-ratio: 16 / 9;
+    image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated;
+    background: #222; border: 3px solid var(--borda); border-radius: 6px; touch-action: none;
+  }
+  .ajuda {
+    width: min(100%, 960px); margin: 10px auto 0; background: var(--painel); border: 2px solid var(--borda);
+    border-radius: 6px; padding: 10px 14px; font-size: 13px; line-height: 2;
+  }
+  kbd {
+    display: inline-block; min-width: 20px; text-align: center; padding: 0 6px; border: 2px solid #55608a;
+    border-bottom-width: 4px; border-radius: 4px; background: #262f48; color: var(--ouro); font-family: inherit; font-size: 12px;
+  }
+  .ajuda span { margin-right: 14px; white-space: nowrap; }
+
+  /* ===== Folhas de sprites ===== */
+  .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 12px; }
+  .bloco { background: var(--painel); border: 2px solid var(--borda); border-radius: 6px; padding: 8px; margin-bottom: 10px; }
+  .bloco h3 { margin: 0 0 6px; font-size: 14px; color: var(--ouro); text-transform: uppercase; }
+  .bloco h3 small { color: #9aa4c0; text-transform: none; font-weight: normal; }
+  .linha { display: grid; grid-template-columns: 62px repeat(8, minmax(0, 1fr)); gap: 3px; align-items: center; margin-bottom: 3px; }
+  .linha b { font-size: 11px; color: #9aa4c0; }
+  canvas.q { width: 100%; aspect-ratio: 1; image-rendering: pixelated; background: #e9e6df; border: 1px solid #55608a; }
+  canvas.q.vazio { background: transparent; border-color: transparent; }
+
+  /* ===== Controles de toque ===== */
+  #toque { display: none; position: fixed; left: 0; right: 0; bottom: 0; padding: 8px; justify-content: space-between; pointer-events: none; }
+  #toque .grupo { display: grid; gap: 6px; pointer-events: auto; }
+  #toque .dpad { grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); }
+  #toque .acoes { grid-template-columns: repeat(4, 46px); }
+  #toque button { padding: 0; height: 46px; font-size: 14px; font-weight: bold; background: rgba(27, 34, 51, .9); touch-action: none; }
+  #toque .dpad button { height: 50px; }
+  @media (pointer: coarse) { #toque { display: flex; } .ajuda { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Estrela da Manhã • Sprites do Karatê<small>quadros de 32 x 32 px, desenhados por código (sem imagens externas)</small></h1>
+  <nav>
+    <button id="abaJogo" class="ativo" type="button">Jogar</button>
+    <button id="abaFolha" type="button">Folhas de sprites</button>
+  </nav>
+</header>
+
+<main>
+  <section id="telaJogo" class="tela">
+    <canvas id="arena"></canvas>
+    <div class="ajuda">
+      <span><kbd>WASD</kbd> / <kbd>Setas</kbd> andar</span>
+      <span><kbd>J</kbd> soco</span>
+      <span><kbd>K</kbd> chute</span>
+      <span><kbd>O</kbd> chute lateral</span>
+      <span><kbd>I</kbd> combo (soco + chute)</span>
+      <span><kbd>B</kbd> especial (rasteira)</span>
+      <span><kbd>L</kbd> defesa (segure)</span>
+      <span><kbd>Espaço</kbd> esquiva</span>
+      <span><kbd>V</kbd> pulo</span>
+      <span><kbd>C</kbd> vitória</span>
+    </div>
+  </section>
+
+  <section id="telaFolha" class="tela" hidden>
+    <div class="barra">
+      <button id="verAkira" class="ativo" type="button">Akira</button>
+      <button id="verBandido" type="button">Bandido do Dojo</button>
+      <button id="baixarPng" type="button">Baixar spritesheet PNG</button>
+      <button id="baixarJson" type="button">Baixar metadados JSON</button>
+    </div>
+    <div id="folhas"></div>
+  </section>
+</main>
+
+<div id="toque">
+  <div class="grupo dpad">
+    <span></span><button data-k="KeyW" type="button">▲</button><span></span>
+    <button data-k="KeyA" type="button">◀</button><span></span><button data-k="KeyD" type="button">▶</button>
+    <span></span><button data-k="KeyS" type="button">▼</button><span></span>
+  </div>
+  <div class="grupo acoes">
+    <button data-k="KeyJ" type="button">J</button><button data-k="KeyK" type="button">K</button>
+    <button data-k="KeyO" type="button">O</button><button data-k="KeyI" type="button">I</button>
+    <button data-k="KeyL" type="button">DEF</button><button data-k="Space" type="button">ESQ</button>
+    <button data-k="KeyV" type="button">PULO</button><button data-k="KeyB" type="button">ESP</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. FERRAMENTAS DE PIXEL ART
+   ===================================================================== */
+const F = 32;                                   // tamanho de cada quadro (32 x 32)
+const OUTC = '#1a1624';                         // cor do contorno
+
+// Linha grossa feita de quadradinhos (pixel art)
+function linha(g, x0, y0, x1, y1, w, c) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  g.fillStyle = c;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (let i = 0; i < 200; i++) {
+    g.fillRect(x0 - (w >> 1), y0 - (w >> 1), w, w);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+// Cinemática inversa de 2 ossos: acha o "joelho/cotovelo" para a mão/pé chegar no alvo
+function ik(rx, ry, tx, ty, l1, l2, s) {
+  let dx = tx - rx, dy = ty - ry, d = Math.hypot(dx, dy) || .01;
+  const max = l1 + l2 - .01;
+  if (d > max) { dx *= max / d; dy *= max / d; d = max; tx = rx + dx; ty = ry + dy; }
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  return { jx: rx + dx * a / d - dy / d * h * s, jy: ry + dy * a / d + dx / d * h * s, tx, ty };
+}
+
+/* =====================================================================
+   2. PALETAS (as cores vêm das suas folhas)
+   ===================================================================== */
+const PAL = {
+  // Akira: cabelo castanho espetado, quimono branco, faixa preta (troque pal.belt para mudar a faixa)
+  akira: { hair: '#4a2c22', hair2: '#6b4332', skin: '#c98a62', skin2: '#a9694a', gi: '#f4f1ea', gi2: '#a9aebd',
+           belt: '#2b2b33', foot: '#e09a68', eye: '#1a1624', arm: 'gi', band: null, bun: false, wrap: null },
+  // Bandido do Dojo: testeira vermelha, coque, quimono cinza sem manga, munhequeiras
+  bandido: { hair: '#17171c', hair2: '#33333d', skin: '#f0a874', skin2: '#c7824f', gi: '#3a3a4a', gi2: '#26262f',
+             belt: '#d42a2a', foot: '#e8a070', eye: '#1a1624', arm: 'skin', band: '#d42a2a', bun: true, wrap: '#d42a2a' }
+};
+
+/* =====================================================================
+   3. POSES E ANIMAÇÕES (esqueleto 2D visto de lado; as outras vistas são projetadas)
+   Pose: b=balanço, j=altura do pulo, c=agachar, ln=inclinar o tronco, hd=cabeça,
+         gl=braços cruzando (frente/costas), fa/ba=mão da frente/de trás [x p/ frente, y p/ baixo],
+         ff/bf=pé da frente/de trás [x p/ frente, altura]
+   ===================================================================== */
+const BASE = { b: 0, j: 0, c: 0, ln: 0, hd: 0, gl: 0, fa: [1, 6], ba: [-1, 6], ff: [2, 0], bf: [-2, 0] };
+const P0 = o => Object.assign({}, BASE, o);
+const GUARDA = { c: 1, fa: [5, 2], ba: [3, 3], ff: [4, 0], bf: [-3, 0] };
+
+const ANIMS = {
+  idle: { n: 4, fps: 5, loop: true, nome: 'Parado',
+    fn: f => P0({ ...GUARDA, b: [0, .4, .8, .4][f] }) },
+  walk: { n: 8, fps: 10, loop: true, nome: 'Andando',
+    fn: f => { const t = f / 8 * Math.PI * 2, s = Math.sin(t), c = Math.cos(t);
+      return P0({ b: -Math.abs(c) * 1.2 + .6, ln: 1, fa: [2 - s * 3, 4], ba: [2 + s * 3, 4],
+        ff: [s * 5, Math.max(0, c) * 3], bf: [-s * 5, Math.max(0, -c) * 3] }); } },
+  soco: { n: 8, fps: 16, loop: false, nome: 'Soco',
+    fn: f => P0({ c: [1, 1, 2, 2, 2, 2, 1, 1][f], ln: [0, -1, -2, 1, 2, 2, 1, 0][f], hd: [0, 0, -1, 1, 2, 2, 1, 0][f],
+      fa: [[5, 2], [3, 2], [0, 2], [9, 0], [12, -1], [12, -1], [8, 1], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [4, 3], [2, 3], [1, 3], [1, 3], [2, 3], [3, 3]][f],
+      ff: [[4, 0], [3, 0], [2, 0], [6, 0], [7, 0], [7, 0], [5, 0], [4, 0]][f],
+      bf: [[-3, 0], [-3, 0], [-4, 0], [-4, 0], [-4, 0], [-4, 0], [-3, 0], [-3, 0]][f] }) },
+  chute: { n: 8, fps: 14, loop: false, nome: 'Chute (frente)',
+    fn: f => P0({ c: [1, 1, 1, 0, 0, 0, 1, 1][f], ln: [0, -1, -2, -2, -2, -2, -1, 0][f], hd: [0, 0, -1, -1, -1, -1, 0, 0][f],
+      ff: [[4, 0], [4, 2], [3, 5], [8, 6], [9, 6], [9, 6], [5, 3], [4, 0]][f],
+      bf: [-3, 0], fa: [[5, 2], [4, 2], [2, 1], [1, 2], [1, 2], [1, 2], [3, 2], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [3, 2], [2, 0], [3, 0], [3, 0], [3, 2], [3, 3]][f] }) },
+  chute2: { n: 8, fps: 14, loop: false, nome: 'Chute (lateral, alto)',
+    fn: f => P0({ c: [1, 1, 0, 0, 0, 0, 0, 1][f], ln: [0, -1, -3, -4, -4, -4, -2, 0][f], hd: [0, -1, -2, -2, -2, -2, -1, 0][f],
+      ff: [[4, 0], [4, 3], [3, 7], [6, 9], [7, 10], [7, 10], [4, 5], [4, 0]][f],
+      bf: [-2, 0], fa: [[5, 2], [4, 1], [3, 0], [2, 0], [2, 0], [2, 0], [3, 1], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [2, 4], [0, 5], [0, 5], [0, 5], [2, 4], [3, 3]][f] }) },
+  combo: { n: 8, fps: 12, loop: false, nome: 'Combo (soco + chute)',
+    fn: f => { const m = [['soco', 3], ['soco', 4], ['soco', 2], ['chute', 2], ['chute', 3], ['chute', 4], ['chute', 6], ['soco', 7]][f]; return ANIMS[m[0]].fn(m[1]); } },
+  defesa: { n: 8, fps: 10, loop: true, nome: 'Defesa (bloqueio)',
+    fn: f => P0({ c: 2, ln: -1, hd: -1, gl: 3, b: (f % 2) * .5, fa: [5, -3], ba: [4, -4], ff: [3, 0], bf: [-3, 0] }) },
+  esquiva: { n: 8, fps: 14, loop: false, nome: 'Esquiva (agachado)',
+    fn: f => P0({ c: [2, 5, 7, 7, 6, 6, 4, 2][f], ln: [1, 3, 4, 4, 4, 3, 2, 1][f], hd: [1, 2, 3, 3, 3, 2, 1, 0][f],
+      fa: [4, 1], ba: [2, 2], ff: [[5, 0], [6, 0], [7, 0], [7, 0], [7, 0], [6, 0], [5, 0], [4, 0]][f], bf: [-4, 0] }) },
+  pulo: { n: 8, fps: 12, loop: false, nome: 'Pulo',
+    fn: f => P0({ j: [0, -3, -7, -10, -10, -7, -3, 0][f], c: [2, 0, 0, 0, 0, 0, 0, 2][f], fa: [3, 0], ba: [2, 1],
+      ff: [[3, 0], [3, 3], [4, 5], [4, 6], [4, 6], [4, 5], [3, 3], [3, 0]][f],
+      bf: [[-3, 0], [-2, 4], [-2, 6], [-3, 7], [-3, 7], [-2, 6], [-2, 4], [-3, 0]][f] }) },
+  hit: { n: 8, fps: 12, loop: false, nome: 'Hit (recebendo dano)',
+    fn: f => P0({ ln: [-2, -4, -4, -3, -2, -1, 0, 0][f], hd: [-2, -3, -3, -2, -1, 0, 0, 0][f], c: [0, 1, 1, 1, 1, 1, 1, 1][f],
+      fa: [-2, 2], ba: [-4, 3], ff: [[1, 0], [0, 0], [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 0]][f],
+      bf: [[-3, 0], [-5, 0], [-5, 0], [-4, 0], [-3, 0], [-3, 0], [-3, 0], [-3, 0]][f], estrela: f < 4 }) },
+  caido: { n: 8, fps: 10, loop: false, nome: 'Caído (nocaute)',
+    fn: f => ({ ...ANIMS.hit.fn(Math.min(f, 3)), rot: [0, 12, 30, 55, 75, 90, 90, 90][f], estrela: false }) },
+  especial: { n: 8, fps: 14, loop: false, nome: 'Especial (rasteira)',
+    fn: f => P0({ c: [2, 5, 7, 7, 7, 7, 5, 2][f], ln: [0, -2, -3, -3, -3, -3, -2, 0][f],
+      ff: [[4, 0], [3, 0], [0, 0], [6, 0], [11, 0], [11, 1], [6, 0], [3, 0]][f], bf: [-4, 0], fa: [-3, -1], ba: [5, -2],
+      varrer: [0, 0, 0, .3, .6, 1, .7, 0][f] }) },
+  vitoria: { n: 8, fps: 8, loop: true, nome: 'Vitória',
+    fn: f => P0({ b: [0, -1, -2, -1, 0, -1, -2, -1][f], ln: -1, fa: [2, -8], ba: [-1, -8], gl: -1 }) }
+};
+const ORDEM_ANIMS = Object.keys(ANIMS);
+const VISTAS = ['R', 'L', 'U', 'D'];
+const NOME_VISTA = { R: 'Direita →', L: 'Esquerda ←', U: 'Cima ↑', D: 'Baixo ↓' };
+
+/* =====================================================================
+   4. DESENHO DO PERSONAGEM (um quadro de 32x32)
+   Passo 1 desenha a silhueta (contorno), passo 2 desenha as cores por cima.
+   ===================================================================== */
+function rig(t, P, view, pal) {
+  const cx = 16, J = P.j || 0, G = 31 + J, hy = 21 + J + (P.c || 0) + (P.b || 0);
+  const ln = P.ln || 0, hd = P.hd || 0, wave = Math.round(Math.sin((P.ph || 0) * 1.3));
+  const shx = cx + ln, shy = hy - 8 + Math.round(Math.abs(ln) * .3);          // ombros
+  const k = view === 'D' ? .35 : view === 'U' ? -.35 : 0;                     // "para frente" vira para baixo/cima na tela
+  for (const pass of [1, 0]) {
+    const out = pass === 1, E = pass, C = c => (out ? OUTC : c);
+    const R = (x, y, w, h, c) => { t.fillStyle = C(c); t.fillRect(Math.round(x) - E, Math.round(y) - E, w + 2 * E, h + 2 * E); };
+    const D = (x, y, w, h, c) => { if (!out) { t.fillStyle = c; t.fillRect(Math.round(x), Math.round(y), w, h); } };   // detalhes
+    const L = (x0, y0, x1, y1, w, c) => linha(t, x0, y0, x1, y1, w + 2 * E, C(c));
+    const Lf = (x0, y0, x1, y1, w, c) => { if (!out) linha(t, x0, y0, x1, y1, w, c); };
+    const braco = pal.arm === 'skin' ? pal.skin : pal.gi;
+    const perna = (px, py, tx, ty, sg) => { const j = ik(px, py, tx, ty, 5, 5, sg); L(px, py, j.jx, j.jy, 3, pal.gi); L(j.jx, j.jy, j.tx, j.ty, 3, pal.gi); return j; };
+    const mao = (sx, sy, hx2, hy2, sg, tam) => {
+      const j = ik(sx, sy, hx2, hy2, 4, 4, sg);
+      L(sx, sy, j.jx, j.jy, 3, braco); L(j.jx, j.jy, j.tx, j.ty, 3, braco);
+      if (!out && pal.wrap) linha(t, (j.jx + j.tx) / 2, (j.jy + j.ty) / 2, j.tx, j.ty, 3, pal.wrap);
+      R(j.tx - (tam >> 1), j.ty - (tam >> 1), tam, tam, pal.skin);
+    };
+
+    if (view === 'R') {
+      /* ---------- de lado ---------- */
+      const sx = shx + 1, sy = shy + 1;
+      mao(sx, sy, sx + P.ba[0], sy + P.ba[1], 1, 3);                                  // braço de trás
+      let j = perna(cx, hy, cx + P.bf[0], G - P.bf[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);   // perna de trás
+      L(cx, hy - 1, shx, shy + 1, 7, pal.gi); Lf(cx - 3, hy - 1, shx - 3, shy + 1, 1, pal.gi2);       // tronco
+      R(cx - 3, hy - 3, 7, 2, pal.belt); R(cx - 5, hy - 3, 2, 3, pal.belt); R(cx - 6, hy - 1, 1, 3, pal.belt);
+      const hx = shx + hd + 1, hc = shy - 4;                                          // cabeça
+      R(hx - 4, hc - 4, 8, 8, pal.skin);
+      R(hx - 5, hc - 5, 9, 4, pal.hair); R(hx - 5, hc - 1, 4, 5, pal.hair);
+      R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
+      if (pal.bun) R(hx - 7, hc - 7, 5, 4, pal.hair);
+      if (pal.band) { R(hx - 5, hc - 2, 10, 2, pal.band); R(hx - 8, hc - 2 + wave, 3, 1, pal.band); R(hx - 9, hc - 1 + wave, 2, 1, pal.band); }
+      D(hx + 1, hc, 1, 2, pal.eye); D(hx + 1, hc - 2, 3, 1, pal.hair2); D(hx + 3, hc + 2, 2, 1, '#8a4a3a'); D(hx - 1, hc + 1, 2, 2, pal.skin2);
+      j = perna(cx, hy, cx + P.ff[0], G - P.ff[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);        // perna da frente
+      mao(sx, sy, sx + P.fa[0], sy + P.fa[1], 1, 3);                                  // braço da frente
+    } else {
+      /* ---------- de frente (D) ou de costas (U) ---------- */
+      const fr = view === 'D', Gy = G - 1;
+      const pernaDU = (s, f) => { const j = perna(cx + s * 2, hy, cx + s * 3, Gy - f[1] + f[0] * k, -s); R(j.tx - 2, j.ty - 1, 4, 2, pal.foot); };
+      pernaDU(-1, P.bf); pernaDU(1, P.ff);
+      L(cx, hy, shx, shy + 1, 9, pal.gi); Lf(cx + 3, hy, shx + 3, shy + 1, 2, pal.gi2);              // tronco
+      R(cx - 4, hy - 3, 9, 2, pal.belt); R(cx - 1, hy - 3, 2, 3, pal.belt); R(cx, hy - 1, 1, 3, pal.belt); R(cx - 2, hy - 1, 1, 3, pal.belt);
+      if (fr) { Lf(cx - 3, shy, cx, shy + 5, 1, pal.gi2); Lf(cx + 3, shy, cx, shy + 5, 1, pal.gi2); D(cx - 1, shy, 3, 2, pal.skin); }
+      const ombro = (s, h) => {
+        const sx = shx + s * 5, sy = shy + 1;
+        mao(sx, sy, sx + s - s * (P.gl || 0), sy + h[1] + h[0] * k, -s, fr ? (h[0] > 6 ? 4 : 3) : (h[0] > 6 ? 2 : 3));
+      };
+      ombro(-1, P.ba); ombro(1, P.fa);
+      const hx = shx + Math.round(hd * .3), hc = shy - 4;                             // cabeça
+      if (fr) {
+        R(hx - 4, hc - 4, 9, 8, pal.skin);
+        R(hx - 5, hc - 5, 11, 4, pal.hair); R(hx - 5, hc - 1, 2, 4, pal.hair); R(hx + 4, hc - 1, 2, 4, pal.hair);
+        R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
+        if (pal.bun) R(hx - 2, hc - 8, 5, 4, pal.hair);
+        if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx + 6, hc - 2 + wave, 3, 1, pal.band); R(hx - 8, hc - 1 - wave, 3, 1, pal.band); }
+        D(hx - 3, hc + 1, 2, 2, pal.eye); D(hx + 1, hc + 1, 2, 2, pal.eye);
+        D(hx - 3, hc, 3, 1, pal.hair2); D(hx + 1, hc, 3, 1, pal.hair2); D(hx - 1, hc + 3, 2, 1, '#8a4a3a');
+      } else {
+        R(hx - 4, hc - 4, 9, 8, pal.hair); R(hx - 5, hc - 5, 11, 5, pal.hair);
+        R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
+        if (pal.bun) R(hx - 2, hc - 8, 5, 4, pal.hair);
+        D(hx - 2, hc + 3, 5, 1, pal.skin);
+        if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx - 1, hc, 1, 6 + wave, pal.band); R(hx + 1, hc, 1, 5 - wave, pal.band); }
+        D(hx - 3, hc - 3, 2, 1, pal.hair2); D(hx + 1, hc - 4, 3, 1, pal.hair2);
+      }
+    }
+  }
+}
+
+function renderFrame(P, view, pal) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = F;
+  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  const rot = P.rot || 0, kk = rot / 90, J = P.j || 0;
+  const sw = Math.round(7 + 7 * kk + (J < 0 ? J / 4 : 0)), scx = 16 + Math.round(6 * kk);   // sombra no chão
+  g.globalAlpha = .28; g.fillStyle = '#000'; g.fillRect(scx - sw, 30, sw * 2, 2); g.fillRect(scx - sw + 1, 29, sw * 2 - 2, 1); g.globalAlpha = 1;
+  if (rot) {                                                                                  // caído: gira o corpo
+    const tmp = document.createElement('canvas'); tmp.width = tmp.height = F;
+    const tg = tmp.getContext('2d'); rig(tg, P, view, pal);
+    g.save(); g.translate(16 + 14 * kk, 31 - 4 * kk); g.rotate(-rot * Math.PI / 180); g.translate(-16, -31); g.drawImage(tmp, 0, 0); g.restore();
+  } else rig(g, P, view, pal);
+  if (P.estrela && (P.ph || 0) % 2 === 0) {                                                   // estrelinhas do hit
+    g.fillStyle = '#ffe45e';
+    [[23, 5], [8, 7], [16, 1]].forEach(([x, y]) => { g.fillRect(x, y - 1, 1, 3); g.fillRect(x - 1, y, 3, 1); });
+  }
+  if (P.varrer > 0) {                                                                         // rastro da rasteira
+    for (let a = -1.3, i = 0; a <= 1.3; a += .16, i++) {
+      g.fillStyle = i % 2 ? '#ffffff' : '#bfe3ff';
+      g.fillRect(16 + Math.round(Math.cos(a) * 14 * P.varrer), 28 + Math.round(Math.sin(a) * 3), 2, 1);
+    }
+  }
+  return cv;
+}
+function espelhar(cv) {
+  const o = document.createElement('canvas'); o.width = o.height = F;
+  const g = o.getContext('2d'); g.imageSmoothingEnabled = false; g.translate(F, 0); g.scale(-1, 1); g.drawImage(cv, 0, 0);
+  return o;
+}
+
+/* =====================================================================
+   5. MONTAR AS FOLHAS (todas as animações, nas 4 direções)
+   ===================================================================== */
+function gerarFolha(quem) {
+  const pal = PAL[quem], folha = {};
+  for (const nome of ORDEM_ANIMS) {
+    const a = ANIMS[nome]; folha[nome] = { R: [], L: [], U: [], D: [] };
+    for (let f = 0; f < a.n; f++) {
+      const p = a.fn(f); p.ph = f;
+      const r = renderFrame(p, 'R', pal);
+      folha[nome].R.push(r); folha[nome].L.push(espelhar(r));
+      folha[nome].U.push(renderFrame(p, 'U', pal)); folha[nome].D.push(renderFrame(p, 'D', pal));
+    }
+  }
+  return folha;
+}
+const FOLHAS = { akira: gerarFolha('akira'), bandido: gerarFolha('bandido') };
+
+// Spritesheet de verdade (PNG): cada linha = animação + direção, 8 colunas
+function montarPng(quem) {
+  const linhas = [];
+  ORDEM_ANIMS.forEach(n => VISTAS.forEach(v => linhas.push([n, v])));
+  const cv = document.createElement('canvas'); cv.width = 8 * F; cv.height = linhas.length * F;
+  const g = cv.getContext('2d');
+  linhas.forEach(([n, v], r) => FOLHAS[quem][n][v].forEach((fr, c) => g.drawImage(fr, c * F, r * F)));
+  const meta = { quadro: F, colunas: 8, arquivo: quem + '.png',
+    linhas: linhas.map(([n, v], r) => ({ linha: r, animacao: n, direcao: v, quadros: ANIMS[n].n, fps: ANIMS[n].fps, loop: ANIMS[n].loop })) };
+  return { cv, meta };
+}
+function baixar(nome, url) { const a = document.createElement('a'); a.href = url; a.download = nome; a.click(); }
+
+/* =====================================================================
+   6. TELA DAS FOLHAS (HTML/CSS)
+   ===================================================================== */
+let quemFolha = 'akira';
+const folhasEl = document.getElementById('folhas');
+function mostrarFolha() {
+  folhasEl.innerHTML = '';
+  for (const nome of ORDEM_ANIMS) {
+    const a = ANIMS[nome], bloco = document.createElement('section'); bloco.className = 'bloco';
+    const h = document.createElement('h3'); h.innerHTML = a.nome + ' <small>• ' + a.n + ' quadros • ' + a.fps + ' fps' + (a.loop ? ' • repete' : '') + '</small>';
+    bloco.appendChild(h);
+    for (const v of VISTAS) {
+      const lin = document.createElement('div'); lin.className = 'linha';
+      const rot = document.createElement('b'); rot.textContent = NOME_VISTA[v]; lin.appendChild(rot);
+      for (let i = 0; i < 8; i++) {
+        const c = document.createElement('canvas'); c.width = c.height = F; c.className = 'q';
+        if (i < a.n) c.getContext('2d').drawImage(FOLHAS[quemFolha][nome][v][i], 0, 0); else c.classList.add('vazio');
+        lin.appendChild(c);
+      }
+      bloco.appendChild(lin);
+    }
+    folhasEl.appendChild(bloco);
+  }
+}
+const abas = { jogo: document.getElementById('abaJogo'), folha: document.getElementById('abaFolha') };
+function aba(qual) {
+  document.getElementById('telaJogo').hidden = qual !== 'jogo'; document.getElementById('telaFolha').hidden = qual !== 'folha';
+  abas.jogo.classList.toggle('ativo', qual === 'jogo'); abas.folha.classList.toggle('ativo', qual === 'folha');
+  if (qual === 'folha') mostrarFolha();
+}
+abas.jogo.onclick = () => aba('jogo'); abas.folha.onclick = () => aba('folha');
+document.getElementById('verAkira').onclick = e => { quemFolha = 'akira'; e.target.classList.add('ativo'); document.getElementById('verBandido').classList.remove('ativo'); mostrarFolha(); };
+document.getElementById('verBandido').onclick = e => { quemFolha = 'bandido'; e.target.classList.add('ativo'); document.getElementById('verAkira').classList.remove('ativo'); mostrarFolha(); };
+document.getElementById('baixarPng').onclick = () => baixar('spritesheet-' + quemFolha + '.png', montarPng(quemFolha).cv.toDataURL('image/png'));
+document.getElementById('baixarJson').onclick = () =>
+  baixar('spritesheet-' + quemFolha + '.json', 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(montarPng(quemFolha).meta, null, 2)));
+
+/* =====================================================================
+   7. JOGO DE TESTE: MOVIMENTAÇÃO E GOLPES
+   ===================================================================== */
+const AW = 320, AH = 180;
+const arena = document.getElementById('arena'), ctx = arena.getContext('2d');
+arena.width = AW; arena.height = AH; ctx.imageSmoothingEnabled = false;
+const VETOR = { R: [1, 0], L: [-1, 0], U: [0, -1], D: [0, 1] };
+const BLOQUEIAM = ['soco', 'chute', 'chute2', 'combo', 'especial', 'esquiva', 'hit'];     // animações que travam o lutador
+// Quadros em que o golpe acerta: alcance (px) e dano
+const GOLPES = {
+  soco: { frames: [3, 4], alc: 20, dano: 8 }, chute: { frames: [4], alc: 24, dano: 12 }, chute2: { frames: [4], alc: 26, dano: 14 },
+  combo: { frames: [1, 5], alc: 24, dano: 10 }, especial: { frames: [4, 5], alc: 28, dano: 15, volta: true }
+};
+
+class Lutador {
+  constructor(x, y, quem, nome) {
+    Object.assign(this, { x, y, quem, nome, dir: 'D', anim: 'idle', t: 0, hp: 100, vivo: true, inv: 0, cd: 1, feitos: new Set(), renasce: 0, x0: x, y0: y });
+  }
+  tocar(anim) { if (this.anim !== anim) { this.anim = anim; this.t = 0; this.feitos.clear(); } }
+  get frame() { const a = ANIMS[this.anim], i = Math.floor(this.t * a.fps); return a.loop ? i % a.n : Math.min(a.n - 1, i); }
+  get acabou() { const a = ANIMS[this.anim]; return !a.loop && this.t * a.fps >= a.n; }
+  get travado() { return BLOQUEIAM.includes(this.anim) && !this.acabou; }
+}
+const jogador = new Lutador(100, 120, 'akira', 'AKIRA');
+const inimigo = new Lutador(230, 120, 'bandido', 'BANDIDO');
+inimigo.dir = 'L';
+const popups = [];
+const aviso = (x, y, txt, cor) => popups.push({ x, y, txt, cor, t: 0 });
+
+/* --- entrada (teclado e botões de toque) --- */
+const teclas = {}, edge = {}, dirs = { U: 0, D: 0, L: 0, R: 0 }, ordem = [];
+const DIRTECLA = { KeyW: 'U', ArrowUp: 'U', KeyS: 'D', ArrowDown: 'D', KeyA: 'L', ArrowLeft: 'L', KeyD: 'R', ArrowRight: 'R' };
+function apertar(code) {
+  if (teclas[code]) return;
+  teclas[code] = true; edge[code] = true;
+  const d = DIRTECLA[code]; if (d) { dirs[d]++; if (!ordem.includes(d)) ordem.push(d); }
+}
+function soltar(code) {
+  if (!teclas[code]) return;
+  teclas[code] = false;
+  const d = DIRTECLA[code]; if (d) { dirs[d] = Math.max(0, dirs[d] - 1); if (!dirs[d]) ordem.splice(ordem.indexOf(d), 1); }
+}
+addEventListener('keydown', e => { if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault(); apertar(e.code); });
+addEventListener('keyup', e => soltar(e.code));
+addEventListener('blur', () => Object.keys(teclas).forEach(soltar));
+document.querySelectorAll('#toque button').forEach(b => {
+  b.addEventListener('pointerdown', e => { e.preventDefault(); apertar(b.dataset.k); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => soltar(b.dataset.k)));
+});
+
+/* --- combate --- */
+function receberGolpe(atq, alvo, dano) {
+  if (!alvo.vivo || alvo.inv > 0) return;
+  const v = VETOR[atq.dir];
+  if (alvo.anim === 'defesa') { dano = Math.ceil(dano * .2); aviso(alvo.x, alvo.y - 34, 'BLOQUEOU', '#9fd8ff'); }
+  else alvo.tocar('hit');
+  alvo.hp = Math.max(0, alvo.hp - dano);
+  alvo.x = Math.min(AW - 20, Math.max(20, alvo.x + v[0] * 5)); alvo.y = Math.min(172, Math.max(60, alvo.y + v[1] * 5));
+  aviso(alvo.x, alvo.y - 30, '-' + dano, '#ffe45e');
+  if (alvo.hp <= 0) { alvo.vivo = false; alvo.tocar('caido'); alvo.renasce = 3; }
+}
+function checarGolpe(atq, alvo) {
+  const g = GOLPES[atq.anim]; if (!g || !atq.vivo) return;
+  const f = atq.frame; if (!g.frames.includes(f) || atq.feitos.has(f)) return;
+  atq.feitos.add(f);
+  const v = VETOR[atq.dir], dx = alvo.x - atq.x, dy = alvo.y - atq.y;
+  const frente = dx * v[0] + dy * v[1], lado = Math.abs(dx * v[1] - dy * v[0]);
+  if (g.volta ? Math.hypot(dx, dy) < g.alc : (frente > -2 && frente < g.alc && lado < 12)) receberGolpe(atq, alvo, g.dano);
+}
+
+/* --- jogador --- */
+function controlar(dt) {
+  const p = jogador;
+  if (!p.vivo) { p.renasce -= dt; if (p.renasce <= 0) { p.vivo = true; p.hp = 100; p.x = p.x0; p.y = p.y0; p.tocar('idle'); } return; }
+  const noPulo = p.anim === 'pulo' && !p.acabou;
+  if (p.travado) {                                                    // golpe em andamento: avança um pouquinho
+    const v = VETOR[p.dir], f = p.frame;
+    if (p.anim === 'esquiva' && p.t < .4) { p.x += v[0] * 110 * dt; p.y += v[1] * 110 * dt; }
+    else if (f >= 2 && f <= 5 && p.anim !== 'hit') { p.x += v[0] * 22 * dt; p.y += v[1] * 22 * dt; }
+    return;
+  }
+  if (!noPulo) {
+    if (edge.KeyJ) { p.tocar('soco'); return; }
+    if (edge.KeyK) { p.tocar('chute'); return; }
+    if (edge.KeyO) { p.tocar('chute2'); return; }
+    if (edge.KeyI) { p.tocar('combo'); return; }
+    if (edge.KeyB) { p.tocar('especial'); return; }
+    if (edge.Space) { p.tocar('esquiva'); p.inv = .35; return; }
+    if (edge.KeyV) { p.tocar('pulo'); return; }
+    if (edge.KeyC) { p.tocar(p.anim === 'vitoria' ? 'idle' : 'vitoria'); return; }
+    if (teclas.KeyL) { p.tocar('defesa'); return; }
+  }
+  const vx = (dirs.R > 0) - (dirs.L > 0), vy = (dirs.D > 0) - (dirs.U > 0);
+  if (ordem.length) p.dir = ordem[ordem.length - 1];                 // o sprite olha para a última direção apertada
+  if (vx || vy) {
+    const l = Math.hypot(vx, vy);
+    p.x += vx / l * 56 * dt; p.y += vy / l * 56 * dt;
+    if (!noPulo) p.tocar('walk');
+  } else if (!noPulo && p.anim !== 'vitoria') p.tocar('idle');
+}
+
+/* --- inimigo (IA simples) --- */
+function pensar(dt) {
+  const e = inimigo, p = jogador;
+  e.cd -= dt;
+  if (!e.vivo) { e.renasce -= dt; if (e.renasce <= 0) { e.vivo = true; e.hp = 100; e.x = 230; e.y = 90 + Math.random() * 70; e.tocar('idle'); } return; }
+  if (e.travado) return;
+  const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy);
+  e.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U');
+  if (!p.vivo) { e.tocar('vitoria'); return; }
+  if (d > 22) { e.x += dx / d * 34 * dt; e.y += dy / d * 34 * dt; e.tocar('walk'); }
+  else { e.tocar('idle'); if (e.cd <= 0) { e.tocar('soco'); e.cd = 1.4; } }
+}
+
+/* --- desenho --- */
+function desenharChao() {
+  ctx.fillStyle = '#1c2030'; ctx.fillRect(0, 0, AW, AH);
+  ctx.fillStyle = '#4a3326'; ctx.fillRect(0, 0, AW, 44);                                    // parede de madeira do dojo
+  for (let x = 0; x < AW; x += 20) { ctx.fillStyle = x % 40 ? '#5a3f2e' : '#3e2a1f'; ctx.fillRect(x, 0, 2, 44); }
+  ctx.fillStyle = '#c0392b'; ctx.fillRect(130, 6, 60, 26); ctx.fillStyle = '#f4d03f'; ctx.fillRect(150, 10, 20, 18);
+  for (let y = 44; y < AH; y += 16) for (let x = 0; x < AW; x += 16) {                       // tatame
+    ctx.fillStyle = ((x + y) / 16) % 2 ? '#cfc680' : '#d8d08c'; ctx.fillRect(x, y, 16, 16);
+    ctx.fillStyle = '#8d8a4c'; ctx.fillRect(x, y, 16, 1); ctx.fillRect(x, y, 1, 16);
+  }
+}
+function barra(x, y, nome, hp, cor) {
+  ctx.fillStyle = '#000'; ctx.fillRect(x, y, 82, 9); ctx.fillStyle = '#3a3f55'; ctx.fillRect(x + 1, y + 1, 80, 7);
+  ctx.fillStyle = cor; ctx.fillRect(x + 1, y + 1, Math.round(80 * hp / 100), 7);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 7px monospace'; ctx.fillText(nome, x + 2, y + 16);
+}
+function desenhar() {
+  desenharChao();
+  for (const l of [jogador, inimigo].sort((a, b) => a.y - b.y)) {
+    const quadro = FOLHAS[l.quem][l.anim][l.dir][l.frame];
+    ctx.drawImage(quadro, Math.round(l.x) - 16, Math.round(l.y) - 30);
+  }
+  ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  for (const p of popups) { ctx.globalAlpha = 1 - p.t; ctx.fillStyle = '#000'; ctx.fillText(p.txt, p.x + 1, p.y - p.t * 14 + 1); ctx.fillStyle = p.cor; ctx.fillText(p.txt, p.x, p.y - p.t * 14); }
+  ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  barra(6, 6, jogador.nome, jogador.hp, '#3aa9e0'); barra(AW - 88, 6, inimigo.nome, inimigo.hp, '#e0453a');
+}
+
+/* --- loop --- */
+let ultimo = 0;
+function loop(agora) {
+  const dt = Math.min(.05, (agora - ultimo) / 1000 || .016); ultimo = agora;
+  if (!document.getElementById('telaJogo').hidden) {
+    for (const l of [jogador, inimigo]) {
+      l.t += dt; l.inv = Math.max(0, l.inv - dt);
+      if (l.vivo && l.acabou && BLOQUEIAM.concat('pulo').includes(l.anim)) l.tocar('idle');
+      l.x = Math.min(AW - 20, Math.max(20, l.x)); l.y = Math.min(172, Math.max(62, l.y));
+    }
+    controlar(dt); pensar(dt);
+    checarGolpe(jogador, inimigo); checarGolpe(inimigo, jogador);
+    for (const p of popups) p.t += dt * 1.4;
+    for (let i = popups.length - 1; i >= 0; i--) if (popups[i].t >= 1) popups.splice(i, 1);
+    desenhar();
+  }
+  Object.keys(edge).forEach(k => delete edge[k]);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
