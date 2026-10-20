@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Karatê RPG Isométrico - Bambuzal</title>
+<style>
+  /* ===== Base da página ===== */
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #16241a;
+    font-family: 'Trebuchet MS', Verdana, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  main { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+  /* ===== HUD (canto da tela) ===== */
+  #hud {
+    position: fixed; top: 8px; left: 8px;
+    background: rgba(15, 25, 20, .72);
+    color: #fff; padding: 8px 12px;
+    border-radius: 10px; font-size: 13px; line-height: 1.6;
+    pointer-events: none;
+  }
+  #hud h1 { margin: 0 0 2px; font-size: 15px; color: #9be36b; }
+  .faixa-cor {
+    display: inline-block; width: 28px; height: 8px;
+    border-radius: 2px; border: 1px solid #fff;
+    background: var(--faixa, #f2f2f2);
+    vertical-align: middle;
+  }
+
+  /* ===== Dica de controles (computador) ===== */
+  #dica {
+    position: fixed; bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 25, 20, .72); color: #fff;
+    padding: 5px 12px; border-radius: 8px;
+    font-size: 12px; text-align: center; pointer-events: none;
+  }
+
+  /* ===== Caixa de diálogo ===== */
+  #dialogo {
+    position: fixed; left: 50%; bottom: 44px;
+    transform: translateX(-50%);
+    width: min(92vw, 640px); box-sizing: border-box;
+    background: rgba(10, 16, 30, .93);
+    border: 3px solid #f4d03f; border-radius: 12px;
+    padding: 12px 16px; color: #fff; cursor: pointer;
+  }
+  #dialogo h2 { margin: 0 0 6px; font-size: 15px; color: #f4d03f; }
+  #dialogo p { margin: 0; min-height: 3em; font-size: 16px; line-height: 1.4; }
+  #dialogo small { color: #9aa4c0; }
+  #dialogo[hidden], #aviso[hidden] { display: none; }
+
+  /* ===== Aviso rápido ===== */
+  #aviso {
+    position: fixed; top: 14px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(244, 208, 63, .95); color: #3a2a00;
+    padding: 6px 14px; border-radius: 20px;
+    font-weight: bold; font-size: 14px; pointer-events: none;
+  }
+
+  /* ===== Controles de celular ===== */
+  #joystick {
+    display: none; position: fixed; left: 20px; bottom: 24px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+    border: 2px solid rgba(255, 255, 255, .35);
+    touch-action: none;
+  }
+  #joystick .knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 54px; height: 54px; margin: -27px;
+    border-radius: 50%; background: rgba(255, 255, 255, .5);
+    transform: translate(var(--kx, 0px), var(--ky, 0px));
+    pointer-events: none;
+  }
+  #btnE {
+    display: none; position: fixed; right: 24px; bottom: 40px;
+    width: 84px; height: 84px; border-radius: 50%;
+    background: rgba(244, 208, 63, .88);
+    border: 3px solid #fff; color: #3a2a00;
+    font-size: 30px; font-weight: bold; touch-action: none;
+  }
+  @media (pointer: coarse) {
+    #joystick, #btnE { display: block; }
+    #dica { display: none; }
+    #dialogo { bottom: 175px; }
+  }
+</style>
+</head>
+<body>
+
+<header id="hud">
+  <h1 id="hudRegiao">Bambuzal</h1>
+  <div>Akira • Nv <span id="hudNivel">1</span></div>
+  <div>Faixa: <span class="faixa-cor" id="hudFaixaCor"></span> <span id="hudFaixa">Branca</span></div>
+  <div>Pergaminhos: <span id="hudItens">0/3</span></div>
+</header>
+
+<main>
+  <canvas id="jogo" tabindex="0"></canvas>
+</main>
+
+<section id="dialogo" hidden>
+  <h2 id="dlgNome"></h2>
+  <p id="dlgTexto"></p>
+  <small>Aperte E ou toque aqui para continuar</small>
+</section>
+
+<p id="aviso" role="status" hidden></p>
+
+<footer id="dica">
+  WASD / Setas = andar • E = falar, ler e pegar • Shift+R = apagar progresso<br>
+  (clique no jogo antes de começar)
+</footer>
+
+<div id="joystick"><div class="knob" id="knob"></div></div>
+<button id="btnE" type="button">E</button>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. DADOS DO JOGO (fica fácil trocar/adicionar coisas aqui)
+   ===================================================================== */
+const HW = 32, HH = 16;          // meia largura / meia altura do losango (tile 64x32 na tela)
+const VEL = 170;                 // velocidade do Akira (pixels de tela por segundo)
+
+// Tipos de tile do chão
+const T = { GRAMA: 0, TERRA: 1, AGUA: 2, PONTE: 3, AREIA: 4 };
+
+// Faixas: o código troca só a cor da faixa, sem redesenhar o Akira
+const FAIXAS = [
+  { nome: 'Branca',   cor: '#f2f2f2' },
+  { nome: 'Amarela',  cor: '#f4d03f' },
+  { nome: 'Laranja',  cor: '#f39c12' },
+  { nome: 'Verde',    cor: '#27ae60' },
+  { nome: 'Azul',     cor: '#2980b9' },
+  { nome: 'Roxa',     cor: '#8e44ad' },
+  { nome: 'Marrom',   cor: '#7b4a26' },
+  { nome: 'Preta',    cor: '#222222' }
+];
+
+// Itens (dados estruturados: para criar item novo é só adicionar aqui)
+const ITENS = {
+  pergaminho: { nome: 'Pergaminho antigo', tipo: 'documento' }
+};
+const TOTAL_PERGAMINHOS_TESTE = 3;
+
+// Preparado para o futuro (ainda NÃO está ativo neste protótipo):
+const REGIOES = {
+  bambuzal: { nome: 'Bambuzal' }
+};
+const CONEXOES = [
+  ['vilarejo', 'bambuzal'], ['vilarejo', 'cerejeiras'], ['vilarejo', 'outono'],
+  ['bambuzal', 'cachoeira'], ['bambuzal', 'templos'], ['cachoeira', 'cavernas'],
+  ['templos', 'cavernas'], ['templos', 'outono'], ['outono', 'cerejeiras'],
+  ['cerejeiras', 'tangerinas'], ['cavernas', 'tangerinas'], ['tangerinas', 'grande_templo']
+];
+const MISSOES = {
+  papeis_perdidos: { nome: 'Os papéis perdidos', npc: 'Davi', total: 7, estado: 'nao_iniciada' }
+};
+
+// Textos dos diálogos
+const DIALOGOS = {
+  kenji: {
+    nome: 'Mestre Kenji (NPC de teste)',
+    linhas: [
+      'Bem-vindo ao Bambuzal, Akira! É aqui que o seu treino começa.',
+      'Ande com WASD ou setas. Chegue perto de mim, das placas ou dos pergaminhos e aperte E.',
+      'Por enquanto só dá para explorar. O combate vem na próxima etapa!',
+      'Procure os 3 pergaminhos antigos escondidos pelo bambuzal.'
+    ]
+  },
+  placa_oeste: { nome: 'Placa', linhas: ['← Vilarejo (em breve). A estrada ainda está em obras!'] },
+  placa_fork:  { nome: 'Placa', linhas: ['Leste: Clareira de treino.  Sul: Cachoeira Sagrada (em breve).  Oeste: Vilarejo (em breve).'] },
+  placa_sul:   { nome: 'Placa', linhas: ['↓ Cachoeira Sagrada (em breve). Ainda não dá para passar.'] },
+  placa_treino:{ nome: 'Placa', linhas: ['Clareira de treino. Aqui você vai praticar golpes e combos (em breve).'] }
+};
+
+/* =====================================================================
+   2. FUNÇÕES AUXILIARES
+   ===================================================================== */
+// Gerador de números aleatórios com semente (o mapa fica sempre igual)
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Número "aleatório" fixo para cada tile (0 a 1)
+function h2(i, j, k = 0) {
+  let n = (i * 374761393 + j * 668265263 + k * 1442695041) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+}
+// Converte posição do mundo (em tiles) para posição na tela (isométrica)
+function iso(x, y) { return [(x - y) * HW, (x + y) * HH]; }
+
+// Direção (0=E 1=SE 2=S 3=SW 4=W 5=NW 6=N 7=NE) a partir de um vetor de tela
+function dirDeVetor(vx, vy) {
+  const a = Math.atan2(vy, vx);
+  return ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+}
+
+/* =====================================================================
+   3. MAPA: Bambuzal (gerado por código, sem imagens externas)
+   ===================================================================== */
+function construirBambuzal() {
+  const W = 26, H = 26;
+  const tiles = Array.from({ length: H }, () => Array(W).fill(T.GRAMA));
+  const set = (x, y, t) => { if (x >= 0 && y >= 0 && x < W && y < H) tiles[y][x] = t; };
+
+  // Desenha uma trilha de terra (linha com 2 tiles de largura)
+  const trilha = (x0, y0, x1, y1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let k = 0; k <= n; k++) {
+      const x = Math.round(x0 + (x1 - x0) * k / n);
+      const y = Math.round(y0 + (y1 - y0) * k / n);
+      set(x, y, T.TERRA); set(x + 1, y, T.TERRA);
+      set(x, y + 1, T.TERRA); set(x + 1, y + 1, T.TERRA);
+    }
+  };
+  trilha(0, 13, 9, 13);    // entrada oeste
+  trilha(9, 13, 9, 23);    // trilha para o sul
+  trilha(9, 13, 13, 9);    // trilha diagonal
+  trilha(13, 9, 21, 9);    // trilha até a clareira
+
+  // Clareira de treino (areia batida)
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (Math.hypot(i + .5 - 21, j + .5 - 9) < 3.2) set(i, j, T.AREIA);
+  }
+
+  // Riacho que corta o mapa de cima a baixo
+  for (let y = 0; y < H; y++) {
+    const wx = 15 + Math.round(Math.sin(y * 0.45));
+    set(wx, y, T.AGUA); set(wx + 1, y, T.AGUA);
+  }
+  // Ponte de madeira nas linhas 9 e 10
+  for (let y = 9; y <= 10; y++) for (let x = 0; x < W; x++) {
+    if (tiles[y][x] === T.AGUA) tiles[y][x] = T.PONTE;
+  }
+
+  const objs = [];
+  const reservas = [];     // lugares que ficam livres de árvores/pedras
+  const rnd = mulberry32(7);
+  const spawn = { x: 3.5, y: 13.5 };
+  reservas.push({ x: spawn.x, y: spawn.y, r: 2.2 });
+
+  // --- Objetos fixos ---
+  const coletados = estado.coletados;
+  [['perg1', 5.5, 8.5], ['perg2', 11.5, 20.5], ['perg3', 23.5, 3.5]].forEach(([id, x, y]) => {
+    reservas.push({ x, y, r: 1 });
+    if (!coletados[id]) objs.push({ tipo: 'pergaminho', id, x, y, r: 0, item: 'pergaminho' });
+  });
+  reservas.push({ x: 20.5, y: 8, r: 1.8 });
+  objs.push({ tipo: 'npc', id: 'kenji', nome: 'Mestre Kenji', x: 20.5, y: 8, r: 0.3, dir: 2, dialogo: 'kenji' });
+  [[8.2, 12.3, 'placa_fork'], [1.8, 12.3, 'placa_oeste'], [8.4, 21.8, 'placa_sul'], [18.3, 6.6, 'placa_treino']]
+    .forEach(([x, y, d]) => { reservas.push({ x, y, r: .8 }); objs.push({ tipo: 'placa', x, y, r: 0.22, dialogo: d }); });
+  // Postes de treino (só decoração sólida por enquanto)
+  [[23.2, 7.2], [23.2, 10.8]].forEach(([x, y]) => { reservas.push({ x, y, r: .8 }); objs.push({ tipo: 'makiwara', x, y, r: 0.25 }); });
+
+  // Verifica se dá para colocar um objeto num ponto
+  const livre = (x, y, r, gap) => {
+    const i = Math.floor(x), j = Math.floor(y);
+    if (i < 0 || j < 0 || i >= W || j >= H) return false;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const t = tiles[j + dj] && tiles[j + dj][i + di];
+      if (t === T.TERRA || t === T.AREIA || t === T.PONTE) return false;
+      if (di === 0 && dj === 0 && t !== T.GRAMA) return false;
+    }
+    for (const z of reservas) if (Math.hypot(x - z.x, y - z.y) < z.r + r) return false;
+    for (const o of objs) if (o.r > 0 && Math.hypot(x - o.x, y - o.y) < o.r + r + gap) return false;
+    return true;
+  };
+  const novoBambu = (x, y) => ({ tipo: 'bambu', x, y, r: 0.16, h: 110 + rnd() * 90, seed: rnd() * 6.28, tom: rnd() });
+
+  // Bambus em grupos
+  for (let g = 0; g < 16; g++) {
+    const cx = 1.5 + rnd() * (W - 3), cy = 1.5 + rnd() * (H - 3);
+    const alvo = 3 + Math.floor(rnd() * 5);
+    let n = 0;
+    for (let t = 0; t < alvo * 4 && n < alvo; t++) {
+      const x = cx + (rnd() - .5) * 3.2, y = cy + (rnd() - .5) * 3.2;
+      if (livre(x, y, 0.16, 0.18)) { objs.push(novoBambu(x, y)); n++; }
+    }
+  }
+  // Bambus na borda do mapa
+  for (let k = 0; k < W; k += 0.55) {
+    [[k, 0.45 + rnd() * .4], [k, H - .45 - rnd() * .4], [0.45 + rnd() * .4, k], [W - .45 - rnd() * .4, k]]
+      .forEach(([x, y]) => { if (livre(x, y, 0.16, 0.05)) objs.push(novoBambu(x, y)); });
+  }
+  // Pedras, arbustos e tocos espalhados
+  const espalhar = (tipo, qtd, r, extra) => {
+    let n = 0, t = 0;
+    while (n < qtd && t++ < 500) {
+      const x = 1 + rnd() * (W - 2), y = 1 + rnd() * (H - 2);
+      if (livre(x, y, r, 0.3)) { objs.push(Object.assign({ tipo, x, y, r }, extra())); n++; }
+    }
+  };
+  espalhar('pedra', 10, 0.42, () => ({ s: 0.8 + rnd() * 0.6 }));
+  espalhar('arbusto', 14, 0.38, () => ({ flor: ['#ff8fb1', '#ffe45e', '#ffffff', '#ff7a45'][Math.floor(rnd() * 4)] }));
+  espalhar('toco', 4, 0.3, () => ({}));
+
+  // Flores no chão (sem colisão)
+  const flores = [];
+  for (let n = 0, t = 0; n < 70 && t < 600; t++) {
+    const x = 1 + rnd() * (W - 2), y = 1 + rnd() * (H - 2);
+    if (tiles[Math.floor(y)][Math.floor(x)] === T.GRAMA) {
+      flores.push({ x, y, cor: ['#ff8fb1', '#ffe45e', '#ffffff', '#c9a0ff'][Math.floor(rnd() * 4)] });
+      n++;
+    }
+  }
+
+  // "saidas" fica pronto para as portas/transições de mapa (vazio por enquanto)
+  return { nome: 'Bambuzal', w: W, h: H, tiles, objs, flores, spawn, saidas: [] };
+}
+const MAPAS = { bambuzal: construirBambuzal };
+
+/* =====================================================================
+   4. ESTADO DO JOGO (tudo que precisa ser salvo fica aqui)
+   ===================================================================== */
+const estado = {
+  nivel: 1,
+  faixa: 0,                       // índice em FAIXAS
+  inventario: {},                 // ex: { pergaminho: 2 }
+  coletados: {}                   // ids de itens já pegos
+};
+const jogador = { tipo: 'jogador', x: 0, y: 0, r: 0.26, dir: 2, anda: false, fase: 0 };
+let mapa = null;
+
+/* =====================================================================
+   5. SALVAMENTO
+   ===================================================================== */
+const CHAVE_SAVE = 'karate-rpg-bambuzal-v1';
+function salvar() {
+  try { localStorage.setItem(CHAVE_SAVE, JSON.stringify({ inv: estado.inventario, col: estado.coletados })); } catch (e) {}
+}
+function carregar() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CHAVE_SAVE) || 'null');
+    if (d) { Object.assign(estado.inventario, d.inv || {}); Object.assign(estado.coletados, d.col || {}); }
+  } catch (e) {}
+}
+function reiniciar() {
+  estado.inventario = {}; estado.coletados = {};
+  salvar(); carregarMapa('bambuzal'); atualizarHud(); aviso('Progresso apagado!');
+}
+
+/* =====================================================================
+   6. CARREGAR MAPA (base para futuras trocas de região/interior)
+   ===================================================================== */
+function carregarMapa(id) {
+  mapa = MAPAS[id]();
+  jogador.x = mapa.spawn.x; jogador.y = mapa.spawn.y; jogador.dir = 2;
+  const [px, py] = iso(jogador.x, jogador.y);
+  camera.x = px; camera.y = py - 24;
+  document.getElementById('hudRegiao').textContent = mapa.nome;
+}
+
+/* =====================================================================
+   7. ENTRADA (teclado + joystick de celular)
+   ===================================================================== */
+const teclas = {};
+let pedirInteracao = false;
+const joy = { x: 0, y: 0, id: null };
+
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  if (!e.repeat) {
+    if (e.code === 'KeyE') pedirInteracao = true;
+    if (e.code === 'KeyR' && e.shiftKey) reiniciar();
+  }
+  teclas[e.code] = true;
+});
+addEventListener('keyup', e => { teclas[e.code] = false; });
+addEventListener('blur', () => { for (const k in teclas) teclas[k] = false; });
+
+const joystickEl = document.getElementById('joystick');
+const knobEl = document.getElementById('knob');
+function moverJoy(e) {
+  const r = joystickEl.getBoundingClientRect();
+  const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const max = r.width / 2 - 10, len = Math.hypot(dx, dy);
+  if (len < 12) { joy.x = 0; joy.y = 0; } else {
+    const f = Math.min(1, len / max);
+    joy.x = dx / len * f; joy.y = dy / len * f;
+  }
+  const kl = Math.min(len, max) || 0;
+  knobEl.style.setProperty('--kx', (len ? dx / len * kl : 0) + 'px');
+  knobEl.style.setProperty('--ky', (len ? dy / len * kl : 0) + 'px');
+}
+function soltarJoy() {
+  joy.id = null; joy.x = 0; joy.y = 0;
+  knobEl.style.setProperty('--kx', '0px'); knobEl.style.setProperty('--ky', '0px');
+}
+joystickEl.addEventListener('pointerdown', e => { joy.id = e.pointerId; joystickEl.setPointerCapture(e.pointerId); moverJoy(e); });
+joystickEl.addEventListener('pointermove', e => { if (e.pointerId === joy.id) moverJoy(e); });
+joystickEl.addEventListener('pointerup', soltarJoy);
+joystickEl.addEventListener('pointercancel', soltarJoy);
+document.getElementById('btnE').addEventListener('pointerdown', e => { e.preventDefault(); pedirInteracao = true; });
+
+/* =====================================================================
+   8. CANVAS, CÂMERA E TELA
+   ===================================================================== */
+const canvas = document.getElementById('jogo');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, dpr = 1, zoom = 1, vinheta = null;
+const camera = { x: 0, y: 0 };
+
+function redimensionar() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+  zoom = Math.min(1.25, Math.max(0.7, Math.min(W / 900, H / 600)));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vinheta = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .75);
+  vinheta.addColorStop(0, 'rgba(0,10,0,0)');
+  vinheta.addColorStop(1, 'rgba(0,10,0,.45)');
+}
+addEventListener('resize', redimensionar);
+canvas.addEventListener('pointerdown', () => { window.focus(); canvas.focus(); });
+
+/* =====================================================================
+   9. COLISÃO (usa a posição dos PÉS no mundo, não o desenho)
+   ===================================================================== */
+function tileBloqueado(x, y) {
+  const i = Math.floor(x), j = Math.floor(y);
+  if (i < 0 || j < 0 || i >= mapa.w || j >= mapa.h) return true;
+  return mapa.tiles[j][i] === T.AGUA;
+}
+function colide(x, y, r) {
+  if (tileBloqueado(x, y) || tileBloqueado(x + r, y) || tileBloqueado(x - r, y) ||
+      tileBloqueado(x, y + r) || tileBloqueado(x, y - r)) return true;
+  for (const o of mapa.objs) {
+    if (o.r > 0) {
+      const dx = x - o.x, dy = y - o.y, m = r + o.r;
+      if (dx * dx + dy * dy < m * m) return true;
+    }
+  }
+  return false;
+}
+// Move em um eixo de cada vez para o Akira deslizar nas paredes
+function mover(e, dx, dy) {
+  if (!colide(e.x + dx, e.y, e.r)) e.x += dx;
+  if (!colide(e.x, e.y + dy, e.r)) e.y += dy;
+}
+
+/* =====================================================================
+   10. DIÁLOGOS, AVISOS, HUD E INTERAÇÃO
+   ===================================================================== */
+const dlgEl = document.getElementById('dialogo');
+const dlgNome = document.getElementById('dlgNome');
+const dlgTexto = document.getElementById('dlgTexto');
+const avisoEl = document.getElementById('aviso');
+const dlg = { ativo: false, linhas: [], i: 0, chars: 0 };
+let avisoT = 0;
+
+function abrirDialogo(d) {
+  dlg.ativo = true; dlg.linhas = d.linhas; dlg.i = 0; dlg.chars = 0;
+  dlgNome.textContent = d.nome; dlgTexto.textContent = '';
+  dlgEl.hidden = false;
+}
+function avancarDialogo() {
+  if (dlg.chars < dlg.linhas[dlg.i].length) {
+    dlg.chars = dlg.linhas[dlg.i].length;            // mostra a frase inteira
+  } else {
+    dlg.i++; dlg.chars = 0;
+    if (dlg.i >= dlg.linhas.length) { dlg.ativo = false; dlgEl.hidden = true; return; }
+  }
+  dlgTexto.textContent = dlg.linhas[dlg.i].slice(0, Math.floor(dlg.chars));
+}
+dlgEl.addEventListener('pointerdown', e => { e.preventDefault(); if (dlg.ativo) avancarDialogo(); });
+
+function aviso(txt) { avisoEl.textContent = txt; avisoEl.hidden = false; avisoT = 2.4; }
+
+function atualizarHud() {
+  document.getElementById('hudNivel').textContent = estado.nivel;
+  const f = FAIXAS[estado.faixa];
+  document.getElementById('hudFaixa').textContent = f.nome;
+  document.getElementById('hudFaixaCor').style.setProperty('--faixa', f.cor);
+  document.getElementById('hudItens').textContent = (estado.inventario.pergaminho || 0) + '/' + TOTAL_PERGAMINHOS_TESTE;
+}
+
+// Itens que o jogador pode usar com a tecla E
+const INTERATIVOS = { npc: 'Falar', placa: 'Ler', pergaminho: 'Pegar' };
+function alvoInteracao() {
+  let melhor = null, menor = 1.5;
+  for (const o of mapa.objs) {
+    if (!INTERATIVOS[o.tipo]) continue;
+    const d = Math.hypot(o.x - jogador.x, o.y - jogador.y);
+    if (d < menor) { menor = d; melhor = o; }
+  }
+  return melhor;
+}
+function coletar(o) {
+  estado.inventario[o.item] = (estado.inventario[o.item] || 0) + 1;
+  estado.coletados[o.id] = true;
+  mapa.objs = mapa.objs.filter(x => x !== o);          // some do mapa
+  aviso('Você pegou: ' + ITENS[o.item].nome + ' (' + estado.inventario[o.item] + '/' + TOTAL_PERGAMINHOS_TESTE + ')');
+  atualizarHud(); salvar();
+}
+function interagir() {
+  if (dlg.ativo) { avancarDialogo(); return; }
+  const o = alvoInteracao();
+  if (!o) return;
+  if (o.tipo === 'pergaminho') { coletar(o); return; }
+  if (o.tipo === 'npc') {                               // NPC olha para o Akira
+    const [ax, ay] = iso(jogador.x, jogador.y), [bx, by] = iso(o.x, o.y);
+    o.dir = dirDeVetor(ax - bx, ay - by);
+  }
+  abrirDialogo(DIALOGOS[o.dialogo]);
+}
+
+/* =====================================================================
+   11. ATUALIZAÇÃO (movimento + câmera)
+   ===================================================================== */
+let tempo = 0;
+function atualizar(dt) {
+  tempo += dt;
+  if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.hidden = true; }
+
+  if (pedirInteracao) { pedirInteracao = false; interagir(); }
+
+  if (dlg.ativo && dlg.chars < dlg.linhas[dlg.i].length) {
+    dlg.chars += dt * 50;
+    dlgTexto.textContent = dlg.linhas[dlg.i].slice(0, Math.floor(dlg.chars));
+  }
+
+  // Vetor de entrada (direção na TELA)
+  let ix = 0, iy = 0, mag = 1;
+  if (!dlg.ativo) {
+    ix = ((teclas.KeyD || teclas.ArrowRight) ? 1 : 0) - ((teclas.KeyA || teclas.ArrowLeft) ? 1 : 0);
+    iy = ((teclas.KeyS || teclas.ArrowDown) ? 1 : 0) - ((teclas.KeyW || teclas.ArrowUp) ? 1 : 0);
+    if (ix || iy) {
+      const l = Math.hypot(ix, iy); ix /= l; iy /= l;   // diagonal normalizada (sem velocidade extra)
+    } else if (joy.x || joy.y) {
+      const l = Math.hypot(joy.x, joy.y); mag = Math.min(1, l); ix = joy.x / l; iy = joy.y / l;
+    }
+  }
+  jogador.anda = !!(ix || iy);
+
+  if (jogador.anda) {
+    jogador.dir = dirDeVetor(ix, iy);
+    jogador.fase += dt * 10;
+    // Velocidade na tela (vertical pela metade por causa da isometria)
+    const svx = ix * VEL * mag, svy = iy * VEL * 0.5 * mag;
+    // Converte tela -> mundo isométrico
+    const dx = dt * (svx / HW + svy / HH) / 2;
+    const dy = dt * (svy / HH - svx / HW) / 2;
+    mover(jogador, dx, dy);
+  }
+
+  // Câmera suave (segue os pés do Akira)
+  const [px, py] = iso(jogador.x, jogador.y);
+  const k = 1 - Math.exp(-dt * 7);
+  camera.x += (px - camera.x) * k;
+  camera.y += (py - 24 - camera.y) * k;
+}
+
+/* =====================================================================
+   12. DESENHO: peças pequenas
+   ===================================================================== */
+const OUT = '#1b1a2a';
+function sombra(x, y, rx, ry) {
+  ctx.fillStyle = 'rgba(0,0,0,.26)';
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+}
+function losango(cx, cy) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - HH - .5); ctx.lineTo(cx + HW + .5, cy);
+  ctx.lineTo(cx, cy + HH + .5); ctx.lineTo(cx - HW - .5, cy); ctx.closePath();
+}
+function folha(x, y, ang, L, cor) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  ctx.fillStyle = cor;
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(L / 2, -L * .22, L, 0);
+  ctx.quadraticCurveTo(L / 2, L * .12, 0, 0);
+  ctx.fill(); ctx.restore();
+}
+function balao(x, y, txt) {
+  ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+  const w = ctx.measureText(txt).width + 16;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x - w / 2, y - 22, w, 22, 6); else ctx.rect(x - w / 2, y - 22, w, 22);
+  ctx.fillStyle = 'rgba(15,20,35,.92)'; ctx.fill();
+  ctx.strokeStyle = '#f4d03f'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y - 7);
+}
+
+/* =====================================================================
+   13. DESENHO: personagem (pixel art feita em código)
+   Para usar spritesheets no futuro, troque só esta função.
+   ===================================================================== */
+const PAL_AKIRA = () => ({
+  gi: '#f6f6f2', sombra: '#d3d7de', pele: '#e2ae85', cabelo: '#1c1b22',
+  testa: '#15141a', faixa: FAIXAS[estado.faixa].cor
+});
+const PAL_KENJI = { gi: '#3b4a6b', sombra: '#2b3650', pele: '#d9a37c', cabelo: '#dcdcdc', testa: null, faixa: '#222222' };
+
+function desenharPersonagem(sx, sy, dir, anda, fase, pal) {
+  const P = 3;
+  const frente = dir === 1 || dir === 2 || dir === 3;
+  const costas = dir === 5 || dir === 6 || dir === 7;
+  const lado = !frente && !costas;
+  const sh = (dir === 1 || dir === 7) ? 1.2 : (dir === 3 || dir === 5) ? -1.2 : 0;
+  const f = dir === 4 ? -1 : 1;
+  const s = anda ? Math.sin(fase) : 0;
+  const bob = anda ? -Math.abs(Math.cos(fase)) * 0.8 : Math.sin(tempo * 3) * 0.25;
+  const fl = Math.sin(fase * 0.7 + tempo * 6) * 0.6;       // balanço da faixa da testa
+
+  ctx.save(); ctx.translate(sx, sy); ctx.scale(P, P);
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = OUT; ctx.lineWidth = 0.5; ctx.lineJoin = 'miter';
+
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); };
+  const F = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+  const RS = (x, y, w, h, c) => (f < 0 ? R(-x - w, y, w, h, c) : R(x, y, w, h, c));
+  const FS = (x, y, w, h, c) => (f < 0 ? F(-x - w, y, w, h, c) : F(x, y, w, h, c));
+
+  if (!lado) {
+    const lL = Math.max(0, s) * 1.6, lR = Math.max(0, -s) * 1.6;
+    // pernas e pés
+    R(-4 + sh * .4, -6 - lL, 3.6, 6, pal.gi);  R(-4.2 + sh * .4, -1.4 - lL, 4, 1.4, pal.pele);
+    R(0.4 + sh * .4, -6 - lR, 3.6, 6, pal.gi); R(0.2 + sh * .4, -1.4 - lR, 4, 1.4, pal.pele);
+    // tronco do quimono
+    R(-4.5 + sh, -14 + bob, 9, 9, pal.gi);
+    F(2 + sh, -13.5 + bob, 2.2, 8.5, pal.sombra);
+    if (frente) {
+      F(-1 + sh, -13.6 + bob, 2, 1.6, pal.pele);
+      ctx.strokeStyle = pal.sombra; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.moveTo(-2 + sh, -14 + bob); ctx.lineTo(1 + sh, -9.8 + bob);
+      ctx.moveTo(2 + sh, -14 + bob); ctx.lineTo(-1 + sh, -9.8 + bob); ctx.stroke();
+      ctx.strokeStyle = OUT; ctx.lineWidth = 0.5;
+    }
+    // faixa (cor muda pelo estado)
+    R(-4.5 + sh, -9.6 + bob, 9, 2.2, pal.faixa);
+    R(-1 + sh, -9.8 + bob, 2, 2.6, pal.faixa);
+    R(0.2 + sh, -7.4 + bob, 1.3, 2.8, pal.faixa); R(-1.8 + sh, -7.4 + bob, 1.3, 3.2, pal.faixa);
+    // braços
+    R(-7.2 + sh, -13.6 + bob - s * 1.2, 2.7, 6, pal.gi);  R(-7.2 + sh, -7.8 + bob - s * 1.2, 2.7, 2.2, pal.pele);
+    R(4.5 + sh, -13.6 + bob + s * 1.2, 2.7, 6, pal.gi);   R(4.5 + sh, -7.8 + bob + s * 1.2, 2.7, 2.2, pal.pele);
+    // cabeça
+    if (frente) {
+      R(-3.6 + sh, -21.5 + bob, 7.2, 7.6, pal.pele);
+      R(-3.9 + sh, -22.8 + bob, 7.8, 3.2, pal.cabelo);
+      if (pal.testa) {
+        R(-3.9 + sh, -18.4 + bob, 7.8, 1.7, pal.testa);
+        R(3.9 + sh, -18.2 + bob + fl, 2.4, 1.1, pal.testa);
+      }
+      F(-2.2 + sh * 1.4, -16.2 + bob, 1.2, 1.6, OUT); F(1 + sh * 1.4, -16.2 + bob, 1.2, 1.6, OUT);
+    } else {
+      R(-3.6 + sh, -21.5 + bob, 7.2, 7.6, pal.cabelo);
+      R(-3.9 + sh, -22.8 + bob, 7.8, 3.2, pal.cabelo);
+      if (pal.testa) {
+        R(-3.9 + sh, -18.4 + bob, 7.8, 1.7, pal.testa);
+        R(-1.4 + sh, -16.8 + bob, 1.2, 4 + fl, pal.testa); R(0.3 + sh, -16.8 + bob, 1.2, 3.4 - fl, pal.testa);
+      }
+    }
+  } else {
+    // vista de lado (E ou W espelhado)
+    RS(-1.8 - s * 2.2, -6 - Math.max(0, -s) * 1.4, 3.6, 6, pal.sombra);
+    RS(-1.2 - s * 2.2, -1.4 - Math.max(0, -s) * 1.4, 4.2, 1.4, pal.pele);
+    RS(-1.8 + s * 2.2, -6 - Math.max(0, s) * 1.4, 3.6, 6, pal.gi);
+    RS(-1.2 + s * 2.2, -1.4 - Math.max(0, s) * 1.4, 4.2, 1.4, pal.pele);
+    RS(-3.2, -14 + bob, 6.4, 9, pal.gi);
+    FS(-3, -13.5 + bob, 2, 8.5, pal.sombra);
+    RS(-3.2, -9.6 + bob, 6.4, 2.2, pal.faixa);
+    RS(-4.6, -9.8 + bob, 1.8, 2.6, pal.faixa);
+    RS(-5.4, -7.2 + bob + fl * .5, 1.3, 3, pal.faixa);
+    RS(-1.3 - s * 1.6, -13.4 + bob, 2.7, 6, pal.gi);
+    RS(-1.3 - s * 1.6, -7.6 + bob, 2.7, 2.2, pal.pele);
+    RS(-3.3, -21.5 + bob, 6.8, 7.6, pal.pele);
+    RS(-3.6, -22.8 + bob, 7, 3.2, pal.cabelo);
+    RS(-3.6, -19.6 + bob, 3.4, 3.4, pal.cabelo);
+    if (pal.testa) {
+      RS(-3.6, -18.4 + bob, 7, 1.7, pal.testa);
+      RS(-6.2, -18.3 + bob + fl, 2.8, 1.1, pal.testa);
+      RS(-5.6, -16.8 + bob - fl, 2.4, 1.1, pal.testa);
+    }
+    FS(1.6, -16.2 + bob, 1.1, 1.6, OUT);
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   14. DESENHO: objetos do cenário
+   ===================================================================== */
+function dBambu(o, sx, sy) {
+  sombra(sx, sy, 9, 4);
+  const h = o.h, bal = Math.sin(tempo * 1.3 + o.seed) * 2;
+  ctx.fillStyle = o.tom < .5 ? '#79b845' : '#6aa93c'; ctx.fillRect(sx - 3.5, sy - h, 7, h);
+  ctx.fillStyle = '#4a8a2c'; ctx.fillRect(sx + .5, sy - h, 3, h);
+  ctx.strokeStyle = '#27531c'; ctx.lineWidth = 1.2; ctx.strokeRect(sx - 3.5, sy - h, 7, h);
+  ctx.fillStyle = '#2f6a22';
+  for (let k = 22; k < h; k += 26) ctx.fillRect(sx - 4.5, sy - k, 9, 3);
+  folha(sx, sy - h + 4, -1.2 + bal * .03, 30, '#5fae3a');
+  folha(sx, sy - h + 4, -2.0 + bal * .03, 28, '#7cc24a');
+  folha(sx, sy - h + 10, -0.4 + bal * .03, 26, '#6bb83f');
+  folha(sx, sy - h + 16, -2.7 + bal * .03, 24, '#5fae3a');
+  folha(sx, sy - h * .55, -0.7 + bal * .03, 22, '#7cc24a');
+  folha(sx, sy - h * .55, -2.4 + bal * .03, 22, '#5fae3a');
+}
+function dPedra(o, sx, sy) {
+  const s = o.s;
+  sombra(sx, sy, 26 * s, 8 * s);
+  const pts = [[-22, 0], [-26, -12], [-14, -26], [4, -30], [20, -22], [26, -8], [22, 0], [0, 5]];
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(sx + x * s, sy + y * s) : ctx.moveTo(sx + x * s, sy + y * s)));
+  ctx.closePath(); ctx.fillStyle = '#8e939c'; ctx.fill();
+  ctx.beginPath();
+  [[-26, -12], [-14, -26], [4, -30], [0, -12], [-10, -4]].forEach(([x, y], i) => (i ? ctx.lineTo(sx + x * s, sy + y * s) : ctx.moveTo(sx + x * s, sy + y * s)));
+  ctx.closePath(); ctx.fillStyle = '#aab0b9'; ctx.fill();
+  ctx.beginPath();
+  [[20, -22], [26, -8], [22, 0], [0, 5], [6, -10]].forEach(([x, y], i) => (i ? ctx.lineTo(sx + x * s, sy + y * s) : ctx.moveTo(sx + x * s, sy + y * s)));
+  ctx.closePath(); ctx.fillStyle = '#6f747e'; ctx.fill();
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => (i ? ctx.lineTo(sx + x * s, sy + y * s) : ctx.moveTo(sx + x * s, sy + y * s)));
+  ctx.closePath(); ctx.strokeStyle = '#40434b'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#6fa04a'; ctx.beginPath(); ctx.ellipse(sx - 8 * s, sy - 26 * s, 8 * s, 3 * s, 0, 0, Math.PI * 2); ctx.fill();
+}
+function dArbusto(o, sx, sy) {
+  sombra(sx, sy, 24, 8);
+  [[-9, -10, 12], [8, -11, 13], [0, -19, 13]].forEach(([x, y, r], i) => {
+    ctx.beginPath(); ctx.arc(sx + x, sy + y, r, 0, Math.PI * 2);
+    ctx.fillStyle = i === 2 ? '#4a9b40' : '#3f8f3a'; ctx.fill();
+    ctx.strokeStyle = '#2c6a2b'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+  ctx.fillStyle = '#6cbc55'; ctx.beginPath(); ctx.arc(sx - 3, sy - 23, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = o.flor;
+  [[-10, -12], [6, -8], [1, -22], [12, -15]].forEach(([x, y]) => ctx.fillRect(sx + x, sy + y, 3, 3));
+}
+function dToco(o, sx, sy) {
+  sombra(sx, sy, 17, 6);
+  ctx.fillStyle = '#8b5a2b'; ctx.fillRect(sx - 12, sy - 16, 24, 16);
+  ctx.beginPath(); ctx.ellipse(sx, sy, 12, 5, 0, 0, Math.PI); ctx.fill();
+  ctx.strokeStyle = '#4e3017'; ctx.lineWidth = 1.5; ctx.strokeRect(sx - 12, sy - 16, 24, 16);
+  ctx.beginPath(); ctx.ellipse(sx, sy - 16, 12, 6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#c58f55'; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(sx, sy - 16, 6, 3, 0, 0, Math.PI * 2); ctx.strokeStyle = '#8b5a2b'; ctx.stroke();
+}
+function dPlaca(o, sx, sy) {
+  sombra(sx, sy, 10, 4);
+  ctx.fillStyle = '#6b4423'; ctx.fillRect(sx - 2.5, sy - 34, 5, 34);
+  ctx.fillStyle = '#c9954f'; ctx.fillRect(sx - 18, sy - 48, 36, 20);
+  ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.strokeRect(sx - 18, sy - 48, 36, 20);
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(sx - 12, sy - 42, 24, 2); ctx.fillRect(sx - 12, sy - 37, 18, 2);
+}
+function dMakiwara(o, sx, sy) {
+  sombra(sx, sy, 11, 4);
+  ctx.fillStyle = '#7a4f2a'; ctx.fillRect(sx - 4, sy - 72, 8, 72);
+  ctx.fillStyle = '#d9c37a'; ctx.fillRect(sx - 8, sy - 58, 16, 24);
+  ctx.strokeStyle = '#8a7436'; ctx.lineWidth = 1.5; ctx.strokeRect(sx - 8, sy - 58, 16, 24);
+  ctx.beginPath(); ctx.moveTo(sx - 8, sy - 50); ctx.lineTo(sx + 8, sy - 50);
+  ctx.moveTo(sx - 8, sy - 42); ctx.lineTo(sx + 8, sy - 42); ctx.stroke();
+}
+function dPergaminho(o, sx, sy) {
+  const yb = Math.sin(tempo * 3 + o.x) * 3;
+  sombra(sx, sy, 10, 4);
+  const g = ctx.createRadialGradient(sx, sy - 12 + yb, 2, sx, sy - 12 + yb, 24);
+  g.addColorStop(0, 'rgba(255,230,120,.5)'); g.addColorStop(1, 'rgba(255,230,120,0)');
+  ctx.fillStyle = g; ctx.fillRect(sx - 26, sy - 40 + yb, 52, 52);
+  ctx.fillStyle = '#f1e3b8'; ctx.fillRect(sx - 9, sy - 16 + yb, 18, 8);
+  ctx.fillStyle = '#c8553d'; ctx.fillRect(sx - 11, sy - 17 + yb, 3, 10); ctx.fillRect(sx + 8, sy - 17 + yb, 3, 10);
+  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1; ctx.strokeRect(sx - 9, sy - 16 + yb, 18, 8);
+}
+function dNpc(o, sx, sy) {
+  desenharPersonagem(sx, sy, o.dir, false, 0, PAL_KENJI);
+  ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  const w = ctx.measureText(o.nome).width + 10;
+  ctx.fillStyle = 'rgba(15,20,35,.75)'; ctx.fillRect(sx - w / 2, sy - 86, w, 15);
+  ctx.fillStyle = '#fff'; ctx.fillText(o.nome, sx, sy - 75);
+}
+
+/* =====================================================================
+   15. DESENHO: terreno
+   ===================================================================== */
+function desenharTerreno(x0, x1, y0, y1) {
+  for (let j = 0; j < mapa.h; j++) for (let i = 0; i < mapa.w; i++) {
+    const cx = (i - j) * HW, cy = (i + j + 1) * HH;
+    if (cx < x0 || cx > x1 || cy < y0 || cy > y1) continue;
+    const tipo = mapa.tiles[j][i], h = h2(i, j);
+    losango(cx, cy);
+    if (tipo === T.GRAMA) {
+      ctx.fillStyle = h < .33 ? '#6db04a' : h < .66 ? '#68a946' : '#72b64e'; ctx.fill();
+      ctx.strokeStyle = '#4e9138'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const u = .2 + .6 * h2(i, j, k + 1), v = .2 + .6 * h2(i, j, k + 5);
+        const px = (i + u - (j + v)) * HW, py = (i + u + j + v) * HH;
+        ctx.moveTo(px, py); ctx.lineTo(px - 1.5, py - 4); ctx.moveTo(px, py); ctx.lineTo(px + 1.5, py - 4.5);
+      }
+      ctx.stroke();
+    } else if (tipo === T.TERRA || tipo === T.AREIA) {
+      const areia = tipo === T.AREIA;
+      ctx.fillStyle = areia ? (h < .5 ? '#e6d3a0' : '#dfcb96') : (h < .5 ? '#b98a58' : '#b08350'); ctx.fill();
+      for (let k = 0; k < 4; k++) {
+        const u = .15 + .7 * h2(i, j, k + 9), v = .15 + .7 * h2(i, j, k + 13);
+        ctx.fillStyle = areia ? '#c9b27a' : (k % 2 ? '#8c6239' : '#cfa772');
+        ctx.fillRect((i + u - (j + v)) * HW, (i + u + j + v) * HH, 2, 1.5);
+      }
+    } else {
+      ctx.fillStyle = h < .5 ? '#2fb3c4' : '#3bc2cf'; ctx.fill();
+      const ox = ((tempo * 10 + h * 40) % 28) - 14;
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(cx + ox - 5, cy + (h - .5) * 8); ctx.lineTo(cx + ox + 5, cy + (h - .5) * 8); ctx.stroke();
+      if (tipo === T.PONTE) {                        // tábuas de madeira
+        losango(cx, cy); ctx.fillStyle = '#a9743b'; ctx.fill();
+        ctx.strokeStyle = '#7a4e24'; ctx.lineWidth = 1; ctx.beginPath();
+        for (let k = 1; k < 4; k++) {
+          const [ax, ay] = iso(i, j + k / 4), [bx, by] = iso(i + 1, j + k / 4);
+          ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+        }
+        ctx.stroke();
+        losango(cx, cy); ctx.strokeStyle = 'rgba(60,35,10,.55)'; ctx.stroke();
+      }
+    }
+  }
+  // Flores do chão (sem colisão)
+  for (const f of mapa.flores) {
+    const [px, py] = iso(f.x, f.y);
+    if (px < x0 || px > x1 || py < y0 || py > y1) continue;
+    ctx.fillStyle = '#3c7a2e'; ctx.fillRect(px, py - 3, 1, 3);
+    ctx.fillStyle = f.cor; ctx.fillRect(px - 1.5, py - 6, 4, 3);
+  }
+}
+
+/* =====================================================================
+   16. RENDERIZAÇÃO (camadas: terreno -> objetos+personagens por profundidade -> efeitos)
+   ===================================================================== */
+const folhas = Array.from({ length: 16 }, (_, i) => ({
+  x: Math.random() * 1000, y: Math.random() * 800, vx: 12 + Math.random() * 18,
+  vy: 14 + Math.random() * 16, r: Math.random() * 6, s: 3 + Math.random() * 3, c: i % 2 ? '#8fd45a' : '#c9e07a'
+}));
+
+function renderizar(dt) {
+  const VW = W / zoom, VH = H / zoom;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#16241a'; ctx.fillRect(0, 0, W, H);
+
+  // Câmera arredondada para não tremer
+  const tx = Math.round(VW / 2 - camera.x), ty = Math.round(VH / 2 - camera.y);
+  ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, tx * dpr * zoom, ty * dpr * zoom);
+  const x0 = camera.x - VW / 2 - 100, x1 = camera.x + VW / 2 + 100;
+  const y0 = camera.y - VH / 2 - 220, y1 = camera.y + VH / 2 + 120;
+
+  // Camada 1: terreno e decoração do chão
+  desenharTerreno(x0, x1, y0, y1);
+
+  // Camada 2: objetos e personagens ordenados pela posição dos PÉS (x + y)
+  const lista = mapa.objs.concat([jogador]);
+  lista.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+  for (const o of lista) {
+    const [sx, sy] = iso(o.x, o.y);
+    if (sx < x0 || sx > x1 || sy < y0 || sy > y1 + 200) continue;
+    switch (o.tipo) {
+      case 'bambu': dBambu(o, sx, sy); break;
+      case 'pedra': dPedra(o, sx, sy); break;
+      case 'arbusto': dArbusto(o, sx, sy); break;
+      case 'toco': dToco(o, sx, sy); break;
+      case 'placa': dPlaca(o, sx, sy); break;
+      case 'makiwara': dMakiwara(o, sx, sy); break;
+      case 'pergaminho': dPergaminho(o, sx, sy); break;
+      case 'npc': dNpc(o, sx, sy); break;
+      case 'jogador': desenharPersonagem(sx, sy, o.dir, o.anda, o.fase, PAL_AKIRA()); break;
+    }
+  }
+
+  // Camada 3: aviso de interação (por cima de tudo)
+  if (!dlg.ativo) {
+    const alvo = alvoInteracao();
+    if (alvo) {
+      const [sx, sy] = iso(alvo.x, alvo.y);
+      const alt = alvo.tipo === 'npc' ? 92 : alvo.tipo === 'placa' ? 54 : 44;
+      balao(sx, sy - alt, 'E • ' + INTERATIVOS[alvo.tipo]);
+    }
+  }
+
+  // Camada 4: efeitos em tela (folhas ao vento + vinheta)
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const f of folhas) {
+    f.x += f.vx * dt; f.y += f.vy * dt; f.r += dt;
+    if (f.x > W + 20) f.x = -20;
+    if (f.y > H + 20) f.y = -20;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.r); ctx.globalAlpha = .6;
+    ctx.fillStyle = f.c; ctx.beginPath(); ctx.ellipse(0, 0, f.s, f.s * .45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = vinheta; ctx.fillRect(0, 0, W, H);
+}
+
+/* =====================================================================
+   17. LOOP PRINCIPAL E INÍCIO DO JOGO
+   ===================================================================== */
+let ultimo = 0;
+function loop(agora) {
+  const dt = Math.min(0.05, (agora - ultimo) / 1000 || 0.016);
+  ultimo = agora;
+  atualizar(dt);
+  renderizar(dt);
+  requestAnimationFrame(loop);
+}
+
+carregar();
+redimensionar();
+carregarMapa('bambuzal');
+atualizarHud();
+canvas.focus();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
