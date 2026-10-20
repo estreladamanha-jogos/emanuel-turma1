@@ -217,7 +217,6 @@ const CONEXOES = [
 ];
 
 // Paletas dos personagens (o desenho é o mesmo, só mudam as cores)
-const PAL_FLASH = { gi: '#fff', som: '#fff', pele: '#fff', cab: '#fff', testa: '#fff', faixa: '#fff' };
 // Bandidos do dojo: testeira vermelha, coque, quimono cinza sem manga e munhequeiras (como na folha de sprites)
 const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true };
 const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true };
@@ -1617,81 +1616,268 @@ function atualizar(dt0) {
 }
 
 /* =====================================================================
-   13. DESENHO DO PERSONAGEM (pixel art; troque só esta função por spritesheets)
+   13. SPRITES ANIME 2D (quadros de 32x32 desenhados por código)
+   Esqueleto 2D com contorno, olhos grandes com brilho, franja e cabelo com reflexo.
+   Animações: parado, andando, soco, chutes, defesa, esquiva, pulo, hit, caído, especial, vitória.
    ===================================================================== */
-function personagem(sx, sy, dir, pose, fase, pal, flash) {
-  const g = ctx; sx = Math.round(sx); sy = Math.round(sy);
-  const P = flash ? PAL_FLASH : pal, ac = P.braco || P.gi;
-  g.globalAlpha = .3; elipse(g, sx, sy, 7, 3, '#000'); g.globalAlpha = 1;
-  if (pose === 'ko') {                                                 // derrotado
-    RO(g, sx - 11, sy - 5, 16, 5, P.gi); RO(g, sx + 5, sy - 7, 7, 7, P.pele); R(g, sx + 5, sy - 8, 7, 3, P.cab); R(g, sx - 11, sy - 3, 16, 2, P.faixa);
-    return;
-  }
-  if (pose === 'esq') {                                                // rolamento
-    disco(g, sx, sy - 6, 7, OUT); disco(g, sx, sy - 6, 6, P.gi); R(g, sx - 6, sy - 7, 12, 2, P.faixa); R(g, sx - 2, sy - 11, 4, 3, P.pele);
-    return;
-  }
-  const frente = dir === 1 || dir === 2 || dir === 3, costas = dir === 5 || dir === 6 || dir === 7;
-  const sh = (dir === 1 || dir === 7) ? 1 : (dir === 3 || dir === 5) ? -1 : 0;
-  const f = dir === 4 ? -1 : 1;
-  const anda = pose === 'walk', s = anda ? Math.sin(fase) : 0;
-  const bob = anda ? -(Math.cos(fase * 2) > 0 ? 1 : 0) : 0;
-  const fl = Math.round(Math.sin(fase * .7 + tempo * 6));
-  const RS = (x, y, w, h, c) => (f < 0 ? RO(g, sx - x - w, sy + y, w, h, c) : RO(g, sx + x, sy + y, w, h, c));
-  if (!(frente || costas)) {                                           // de lado (E/W)
-    const l1 = Math.round(s * 3);
-    RS(-2 - l1, -6, 4, 6, P.som); RS(-2 + l1, -6, 4, 6, P.gi);
-    RS(-4, -15 + bob, 8, 9, P.gi); RS(-4, -9 + bob, 8, 2, P.faixa); RS(-6, -9 + bob, 2, 3, P.faixa); RS(-7, -6 + bob + fl, 1, 3, P.faixa);
-    RS(-1 - Math.round(s * 2), -14 + bob, 3, 6, ac); RS(-1 - Math.round(s * 2), -8 + bob, 3, 2, P.pele);
-    if (P.punho) RS(-1 - Math.round(s * 2), -9 + bob, 3, 2, P.punho);
-    if (P.trancas) RS(-6, -22 + bob, 2, 12, P.cab);
-    RS(-4, -23 + bob, 8, 8, P.pele); RS(-5, -25 + bob, 10, 4, P.cab); RS(-5, -21 + bob, 4, 4, P.cab);
-    if (P.espeto) { RS(-4, -28 + bob, 3, 3, P.cab); RS(0, -28 + bob, 4, 3, P.cab); }
-    if (P.coque) RS(-6, -29 + bob, 5, 4, P.cab);
-    if (P.testa) { RS(-5, -20 + bob, 10, 2, P.testa); RS(-9, -20 + bob + fl, 4, 1, P.testa); RS(-8, -18 + bob - fl, 3, 1, P.testa); }
-    if (f < 0) R(g, sx - 3, sy - 19 + bob, 1, 2, OUT); else R(g, sx + 2, sy - 19 + bob, 1, 2, OUT);
-  } else {                                                             // de frente / costas
-    const lL = s > .3 ? 2 : 0, lR = s < -.3 ? 2 : 0;
-    RO(g, sx - 5 + sh, sy - 6 - lL, 4, 6, P.gi); RO(g, sx + 1 + sh, sy - 6 - lR, 4, 6, P.gi);
-    R(g, sx - 5 + sh, sy - 1 - lL, 4, 1, P.pele); R(g, sx + 1 + sh, sy - 1 - lR, 4, 1, P.pele);
-    RO(g, sx - 5 + sh, sy - 15 + bob, 10, 9, P.gi); R(g, sx + 2 + sh, sy - 14 + bob, 3, 8, P.som);
-    if (frente) { R(g, sx - 1 + sh, sy - 15 + bob, 2, 2, P.pele); R(g, sx - 2 + sh, sy - 14 + bob, 1, 3, P.som); R(g, sx + 1 + sh, sy - 14 + bob, 1, 3, P.som); }
-    RO(g, sx - 5 + sh, sy - 9 + bob, 10, 2, P.faixa); RO(g, sx - 1 + sh, sy - 9 + bob, 2, 3, P.faixa);
-    R(g, sx + sh, sy - 6 + bob, 1, 3, P.faixa); R(g, sx - 2 + sh, sy - 6 + bob, 1, 3, P.faixa);
-    const a = Math.round(s * 1.5);
-    RO(g, sx - 8 + sh, sy - 14 + bob - a, 3, 6, ac); R(g, sx - 8 + sh, sy - 8 + bob - a, 3, 2, P.pele);
-    RO(g, sx + 5 + sh, sy - 14 + bob + a, 3, 6, ac); R(g, sx + 5 + sh, sy - 8 + bob + a, 3, 2, P.pele);
-    if (P.punho) { R(g, sx - 8 + sh, sy - 9 + bob - a, 3, 2, P.punho); R(g, sx + 5 + sh, sy - 9 + bob + a, 3, 2, P.punho); }
-    if (P.trancas) {                                                   // tranças (Rita)
-      R(g, sx - 7 + sh, sy - 22 + bob, 2, 13, P.cab); R(g, sx + 5 + sh, sy - 22 + bob, 2, 13, P.cab);
-      R(g, sx - 7 + sh, sy - 10 + bob, 2, 1, '#e8c860'); R(g, sx + 5 + sh, sy - 10 + bob, 2, 1, '#e8c860');
-    }
-    RO(g, sx - 4 + sh, sy - 23 + bob, 8, 8, frente ? P.pele : P.cab); RO(g, sx - 5 + sh, sy - 25 + bob, 10, 4, P.cab);
-    if (P.espeto) { RO(g, sx - 4 + sh, sy - 28 + bob, 3, 3, P.cab); RO(g, sx + 1 + sh, sy - 28 + bob, 4, 3, P.cab); RO(g, sx - 1 + sh, sy - 29 + bob, 2, 2, P.cab); }
-    if (P.coque) RO(g, sx - 2 + sh, sy - 29 + bob, 5, 4, P.cab);
-    if (P.testa) {
-      RO(g, sx - 5 + sh, sy - 20 + bob, 10, 2, P.testa);
-      if (frente) { R(g, sx + 5 + sh, sy - 20 + bob + fl, 3, 1, P.testa); R(g, sx - 8 + sh, sy - 19 + bob - fl, 3, 1, P.testa); }
-      else { R(g, sx - 2 + sh, sy - 18 + bob, 1, 4 + fl, P.testa); R(g, sx + 1 + sh, sy - 18 + bob, 1, 3 - fl, P.testa); }
-    }
-    if (frente) { R(g, sx - 2 + sh, sy - 19 + bob, 1, 2, OUT); R(g, sx + 1 + sh, sy - 19 + bob, 1, 2, OUT); }
-  }
-  const v = DIRV[dir];
-  if (pose === 'soco') {                                               // braço esticado
-    for (let k = 1; k <= 6; k++) RO(g, sx + Math.round(v[0] * k * 1.7) - 1, sy - 12 + Math.round(v[1] * k * .9) - 1, 3, 3, ac);
-    RO(g, sx + Math.round(v[0] * 11) - 2, sy - 12 + Math.round(v[1] * 5.5) - 2, 4, 4, P.pele);
-  } else if (pose === 'chute') {                                       // perna esticada
-    for (let k = 1; k <= 6; k++) RO(g, sx + Math.round(v[0] * k * 1.9) - 2, sy - 6 + Math.round(v[1] * k) - 2, 4, 4, P.gi);
-    RO(g, sx + Math.round(v[0] * 13) - 2, sy - 6 + Math.round(v[1] * 6.5) - 2, 5, 4, P.pele);
-  } else if (pose === 'def') {                                         // guarda: braços cruzados
-    RO(g, sx - 6, sy - 15, 12, 3, ac); RO(g, sx - 6, sy - 12, 12, 3, ac); R(g, sx - 7, sy - 15, 2, 6, P.pele); R(g, sx + 5, sy - 15, 2, 6, P.pele);
-  } else if (pose === 'prep' || pose === 'vit') {                      // braços para cima (golpe armado / vitória)
-    RO(g, sx + 5, sy - 24, 3, 9, ac); R(g, sx + 5, sy - 26, 3, 2, P.pele);
-    if (pose === 'vit') { RO(g, sx - 8, sy - 24, 3, 9, ac); R(g, sx - 8, sy - 26, 3, 2, P.pele); }
+const QF = 32;                                   // tamanho do quadro
+const OUTC = '#241c2c';                          // cor do contorno
+
+function linha(g, x0, y0, x1, y1, w, c) {        // linha grossa feita de quadradinhos
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  g.fillStyle = c;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (let i = 0; i < 200; i++) {
+    g.fillRect(x0 - (w >> 1), y0 - (w >> 1), w, w);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
   }
 }
-// Akira como na folha de sprites: cabelo castanho espetado, quimono branco (a faixa muda com a graduação)
-const PAL_AKIRA = () => ({ gi: '#f6f4ee', som: '#a9aebd', pele: '#cf9168', cab: '#4a2f24', testa: null, faixa: FAIXAS[estado.faixa].cor, espeto: true });
+function ik(rx, ry, tx, ty, l1, l2, s) {         // cinemática inversa de 2 ossos (joelho/cotovelo)
+  let dx = tx - rx, dy = ty - ry, d = Math.hypot(dx, dy) || .01;
+  const max = l1 + l2 - .01;
+  if (d > max) { dx *= max / d; dy *= max / d; d = max; tx = rx + dx; ty = ry + dy; }
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  return { jx: rx + dx * a / d - dy / d * h * s, jy: ry + dy * a / d + dx / d * h * s, tx, ty };
+}
+
+// Pose: b=balanço, j=pulo, c=agachar, ln=inclinar, hd=cabeça, gl=braços cruzando,
+//       fa/ba=mão da frente/de trás [x p/ frente, y p/ baixo], ff/bf=pé da frente/de trás [x, altura]
+const BASE = { b: 0, j: 0, c: 0, ln: 0, hd: 0, gl: 0, fa: [1, 6], ba: [-1, 6], ff: [2, 0], bf: [-2, 0] };
+const P0 = o => Object.assign({}, BASE, o);
+const GUARDA = { c: 1, fa: [5, 2], ba: [3, 3], ff: [4, 0], bf: [-3, 0] };
+const ANIMS = {
+  relax: { n: 4, fn: f => P0({ b: [0, .4, .7, .4][f] }) },
+  idle: { n: 4, fn: f => P0({ ...GUARDA, b: [0, .4, .8, .4][f] }) },
+  walk: { n: 8, fn: f => { const t = f / 8 * Math.PI * 2, s = Math.sin(t), c = Math.cos(t);
+      return P0({ b: -Math.abs(c) * 1.2 + .6, ln: 1, fa: [2 - s * 3, 4], ba: [2 + s * 3, 4],
+        ff: [s * 5, Math.max(0, c) * 3], bf: [-s * 5, Math.max(0, -c) * 3] }); } },
+  soco: { n: 8, fn: f => P0({ c: [1, 1, 2, 2, 2, 2, 1, 1][f], ln: [0, -1, -2, 1, 2, 2, 1, 0][f], hd: [0, 0, -1, 1, 2, 2, 1, 0][f],
+      fa: [[5, 2], [3, 2], [0, 2], [9, 0], [12, -1], [12, -1], [8, 1], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [4, 3], [2, 3], [1, 3], [1, 3], [2, 3], [3, 3]][f],
+      ff: [[4, 0], [3, 0], [2, 0], [6, 0], [7, 0], [7, 0], [5, 0], [4, 0]][f],
+      bf: [[-3, 0], [-3, 0], [-4, 0], [-4, 0], [-4, 0], [-4, 0], [-3, 0], [-3, 0]][f] }) },
+  chute: { n: 8, fn: f => P0({ c: [1, 1, 1, 0, 0, 0, 1, 1][f], ln: [0, -1, -2, -2, -2, -2, -1, 0][f], hd: [0, 0, -1, -1, -1, -1, 0, 0][f],
+      ff: [[4, 0], [4, 2], [3, 5], [8, 6], [9, 6], [9, 6], [5, 3], [4, 0]][f],
+      bf: [-3, 0], fa: [[5, 2], [4, 2], [2, 1], [1, 2], [1, 2], [1, 2], [3, 2], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [3, 2], [2, 0], [3, 0], [3, 0], [3, 2], [3, 3]][f] }) },
+  chute2: { n: 8, fn: f => P0({ c: [1, 1, 0, 0, 0, 0, 0, 1][f], ln: [0, -1, -3, -4, -4, -4, -2, 0][f], hd: [0, -1, -2, -2, -2, -2, -1, 0][f],
+      ff: [[4, 0], [4, 3], [3, 7], [6, 9], [7, 10], [7, 10], [4, 5], [4, 0]][f],
+      bf: [-2, 0], fa: [[5, 2], [4, 1], [3, 0], [2, 0], [2, 0], [2, 0], [3, 1], [5, 2]][f],
+      ba: [[3, 3], [3, 3], [2, 4], [0, 5], [0, 5], [0, 5], [2, 4], [3, 3]][f] }) },
+  defesa: { n: 8, fn: f => P0({ c: 2, ln: -1, hd: -1, gl: 3, b: (f % 2) * .5, fa: [5, -3], ba: [4, -4], ff: [3, 0], bf: [-3, 0] }) },
+  esquiva: { n: 8, fn: f => P0({ c: [2, 5, 7, 7, 6, 6, 4, 2][f], ln: [1, 3, 4, 4, 4, 3, 2, 1][f], hd: [1, 2, 3, 3, 3, 2, 1, 0][f],
+      fa: [4, 1], ba: [2, 2], ff: [[5, 0], [6, 0], [7, 0], [7, 0], [7, 0], [6, 0], [5, 0], [4, 0]][f], bf: [-4, 0] }) },
+  pulo: { n: 8, fn: f => P0({ j: [0, -3, -7, -10, -10, -7, -3, 0][f], c: [2, 0, 0, 0, 0, 0, 0, 2][f], fa: [3, 0], ba: [2, 1],
+      ff: [[3, 0], [3, 3], [4, 5], [4, 6], [4, 6], [4, 5], [3, 3], [3, 0]][f],
+      bf: [[-3, 0], [-2, 4], [-2, 6], [-3, 7], [-3, 7], [-2, 6], [-2, 4], [-3, 0]][f] }) },
+  hit: { n: 8, fn: f => P0({ ln: [-2, -4, -4, -3, -2, -1, 0, 0][f], hd: [-2, -3, -3, -2, -1, 0, 0, 0][f], c: [0, 1, 1, 1, 1, 1, 1, 1][f],
+      fa: [-2, 2], ba: [-4, 3], ff: [[1, 0], [0, 0], [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [4, 0]][f],
+      bf: [[-3, 0], [-5, 0], [-5, 0], [-4, 0], [-3, 0], [-3, 0], [-3, 0], [-3, 0]][f], estrela: f < 4 }) },
+  caido: { n: 8, fn: f => ({ ...ANIMS.hit.fn(Math.min(f, 3)), rot: [0, 12, 30, 55, 75, 90, 90, 90][f], estrela: false }) },
+  especial: { n: 8, fn: f => P0({ c: [2, 5, 7, 7, 7, 7, 5, 2][f], ln: [0, -2, -3, -3, -3, -3, -2, 0][f],
+      ff: [[4, 0], [3, 0], [0, 0], [6, 0], [11, 0], [11, 1], [6, 0], [3, 0]][f], bf: [-4, 0], fa: [-3, -1], ba: [5, -2],
+      varrer: [0, 0, 0, .3, .6, 1, .7, 0][f] }) },
+  vitoria: { n: 8, fn: f => P0({ b: [0, -1, -2, -1, 0, -1, -2, -1][f], ln: -1, fa: [2, -8], ba: [-1, -8], gl: -1 }) }
+};
+
+function rig(t, P, view, pal) {
+  const cx = 16, J = P.j || 0, G = 31 + J, hy = 21 + J + (P.c || 0) + (P.b || 0);
+  const ln = P.ln || 0, hd = P.hd || 0, wave = Math.round(Math.sin((P.ph || 0) * 1.3));
+  const shx = cx + ln, shy = hy - 8 + Math.round(Math.abs(ln) * .3);          // ombros
+  const k = view === 'D' ? .35 : view === 'U' ? -.35 : 0;                     // "para frente" vira para baixo/cima na tela
+  const iris = pal.iris || '#3a2418', rubor = '#e59a7a', boca = '#8a4a3a';
+  for (const pass of [1, 0]) {
+    const out = pass === 1, E = pass, C = c => (out ? OUTC : c);
+    const R = (x, y, w, h, c) => { t.fillStyle = C(c); t.fillRect(Math.round(x) - E, Math.round(y) - E, w + 2 * E, h + 2 * E); };
+    const D = (x, y, w, h, c) => { if (!out) { t.fillStyle = c; t.fillRect(Math.round(x), Math.round(y), w, h); } };   // detalhes (só nas cores)
+    const L = (x0, y0, x1, y1, w, c) => linha(t, x0, y0, x1, y1, w + 2 * E, C(c));
+    const Lf = (x0, y0, x1, y1, w, c) => { if (!out) linha(t, x0, y0, x1, y1, w, c); };
+    const braco = pal.arm === 'skin' ? pal.skin : pal.gi;
+    const perna = (px, py, tx, ty, sg) => { const j = ik(px, py, tx, ty, 5, 5, sg); L(px, py, j.jx, j.jy, 3, pal.gi); L(j.jx, j.jy, j.tx, j.ty, 3, pal.gi); return j; };
+    const mao = (sx, sy, hx2, hy2, sg, tam) => {
+      const j = ik(sx, sy, hx2, hy2, 4, 4, sg);
+      L(sx, sy, j.jx, j.jy, 3, braco); L(j.jx, j.jy, j.tx, j.ty, 3, braco);
+      if (!out && pal.wrap) linha(t, (j.jx + j.tx) / 2, (j.jy + j.ty) / 2, j.tx, j.ty, 3, pal.wrap);
+      R(j.tx - (tam >> 1), j.ty - (tam >> 1), tam, tam, pal.skin);
+    };
+    const espetos = (hx, hc) => {                                           // cabelo de anime: espetos ou capa lisa
+      if (pal.espeto) { R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 8, 3, 3, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair); }
+      else R(hx - 4, hc - 6, 9, 1, pal.hair);
+    };
+
+    if (view === 'R') {
+      /* ---------- de lado ---------- */
+      const sx = shx + 1, sy = shy + 1;
+      mao(sx, sy, sx + P.ba[0], sy + P.ba[1], 1, 3);                                  // braço de trás
+      let j = perna(cx, hy, cx + P.bf[0], G - P.bf[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);   // perna de trás
+      L(cx, hy - 1, shx, shy + 1, 7, pal.gi); Lf(cx - 3, hy - 1, shx - 3, shy + 1, 1, pal.gi2);       // tronco
+      Lf(cx + 3, hy - 1, shx + 3, shy + 1, 1, '#ffffff');                                              // luz na frente do quimono
+      R(cx - 3, hy - 3, 7, 2, pal.belt); R(cx - 5, hy - 3, 2, 3, pal.belt); R(cx - 6, hy - 1, 1, 3, pal.belt);
+      const hx = shx + hd + 1, hc = shy - 4;                                          // cabeça
+      if (pal.trancas) R(hx - 6, hc - 1, 2, 12, pal.hair);
+      R(hx - 4, hc - 4, 8, 8, pal.skin);
+      R(hx - 5, hc - 5, 9, 4, pal.hair); R(hx - 5, hc - 1, 4, 5, pal.hair);
+      espetos(hx, hc);
+      if (pal.bun) R(hx - 7, hc - 7, 5, 4, pal.hair);
+      if (pal.band) { R(hx - 5, hc - 2, 10, 2, pal.band); R(hx - 8, hc - 2 + wave, 3, 1, pal.band); R(hx - 9, hc - 1 + wave, 2, 1, pal.band); }
+      D(hx - 4, hc - 5, 3, 1, pal.hair2); D(hx - 5, hc - 1, 1, 3, pal.hair2);        // brilho do cabelo
+      D(hx + 1, hc - 3, 3, 1, pal.hair); D(hx + 3, hc - 2, 1, 1, pal.hair);          // franja
+      D(hx + 1, hc - 1, 2, 3, pal.eye); D(hx + 1, hc, 2, 2, iris); D(hx + 2, hc, 1, 1, '#ffffff');   // olho grande com brilho
+      D(hx, hc + 2, 2, 1, rubor); D(hx + 2, hc + 2, 2, 1, boca); D(hx - 1, hc + 1, 2, 2, pal.skin2);
+      if (pal.trancas) D(hx - 6, hc + 9, 2, 1, '#e8c860');
+      j = perna(cx, hy, cx + P.ff[0], G - P.ff[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);        // perna da frente
+      mao(sx, sy, sx + P.fa[0], sy + P.fa[1], 1, 3);                                  // braço da frente
+    } else {
+      /* ---------- de frente (D) ou de costas (U) ---------- */
+      const fr = view === 'D', Gy = G - 1;
+      const pernaDU = (s, f) => { const j = perna(cx + s * 2, hy, cx + s * 3, Gy - f[1] + f[0] * k, -s); R(j.tx - 2, j.ty - 1, 4, 2, pal.foot); };
+      pernaDU(-1, P.bf); pernaDU(1, P.ff);
+      L(cx, hy, shx, shy + 1, 9, pal.gi); Lf(cx + 3, hy, shx + 3, shy + 1, 2, pal.gi2); Lf(cx - 4, hy - 1, shx - 4, shy + 1, 1, '#ffffff');   // tronco
+      R(cx - 4, hy - 3, 9, 2, pal.belt); R(cx - 1, hy - 3, 2, 3, pal.belt); R(cx, hy - 1, 1, 3, pal.belt); R(cx - 2, hy - 1, 1, 3, pal.belt);
+      if (fr) { Lf(cx - 3, shy, cx, shy + 5, 1, pal.gi2); Lf(cx + 3, shy, cx, shy + 5, 1, pal.gi2); D(cx - 1, shy, 3, 2, pal.skin); }
+      const ombro = (s, h) => {
+        const sx = shx + s * 5, sy = shy + 1;
+        mao(sx, sy, sx + s - s * (P.gl || 0), sy + h[1] + h[0] * k, -s, fr ? (h[0] > 6 ? 4 : 3) : (h[0] > 6 ? 2 : 3));
+      };
+      ombro(-1, P.ba); ombro(1, P.fa);
+      const hx = shx + Math.round(hd * .3), hc = shy - 4;                             // cabeça
+      if (pal.trancas) {                                                              // tranças da Rita
+        R(hx - 7, hc, 2, 12, pal.hair); R(hx + 6, hc, 2, 12, pal.hair);
+        D(hx - 7, hc + 9, 2, 1, '#e8c860'); D(hx + 6, hc + 9, 2, 1, '#e8c860');
+      }
+      if (fr) {
+        R(hx - 4, hc - 4, 9, 8, pal.skin);
+        R(hx - 5, hc - 5, 11, 4, pal.hair); R(hx - 5, hc - 1, 2, 4, pal.hair); R(hx + 4, hc - 1, 2, 4, pal.hair);
+        espetos(hx, hc);
+        if (pal.bun) R(hx - 1, hc - 8, 3, 3, pal.hair);
+        if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx + 6, hc - 2 + wave, 3, 1, pal.band); R(hx - 8, hc - 1 - wave, 3, 1, pal.band); }
+        D(hx - 4, hc - 5, 4, 1, pal.hair2); D(hx + 2, hc - 4, 2, 1, pal.hair2);      // brilho do cabelo
+        D(hx - 4, hc - 3, 2, 3, pal.hair); D(hx - 1, hc - 3, 3, 2, pal.hair); D(hx + 2, hc - 3, 3, 3, pal.hair);   // franja
+        for (const ex of [hx - 3, hx + 1]) { D(ex, hc, 2, 1, pal.eye); D(ex, hc + 1, 2, 2, iris); D(ex, hc + 1, 1, 1, '#ffffff'); }   // olhos grandes
+        D(hx - 4, hc + 3, 2, 1, rubor); D(hx + 3, hc + 3, 2, 1, rubor); D(hx - 1, hc + 3, 2, 1, boca);
+      } else {
+        R(hx - 4, hc - 4, 9, 8, pal.hair); R(hx - 5, hc - 5, 11, 5, pal.hair);
+        espetos(hx, hc);
+        if (pal.bun) R(hx - 1, hc - 8, 3, 3, pal.hair);
+        D(hx - 2, hc + 3, 5, 1, pal.skin);
+        if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx - 1, hc, 1, 6 + wave, pal.band); R(hx + 1, hc, 1, 5 - wave, pal.band); }
+        D(hx - 3, hc - 4, 3, 1, pal.hair2); D(hx + 1, hc - 3, 3, 1, pal.hair2); D(hx - 1, hc - 1, 1, 3, pal.hair2);
+      }
+    }
+  }
+}
+
+function renderFrame(P, view, pal) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = QF;
+  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  const rot = P.rot || 0, kk = rot / 90, J = P.j || 0;
+  const sw = Math.round(7 + 7 * kk + (J < 0 ? J / 4 : 0)), scx = 16 + Math.round(6 * kk);   // sombra no chão
+  g.globalAlpha = .28; g.fillStyle = '#000'; g.fillRect(scx - sw, 30, sw * 2, 2); g.fillRect(scx - sw + 1, 29, sw * 2 - 2, 1); g.globalAlpha = 1;
+  if (rot) {                                                                                  // caído: gira o corpo
+    const tmp = document.createElement('canvas'); tmp.width = tmp.height = QF;
+    rig(tmp.getContext('2d'), P, view, pal);
+    g.save(); g.translate(16 + 14 * kk, 31 - 4 * kk); g.rotate(-rot * Math.PI / 180); g.translate(-16, -31); g.drawImage(tmp, 0, 0); g.restore();
+  } else rig(g, P, view, pal);
+  if (P.estrela && (P.ph || 0) % 2 === 0) {                                                   // estrelinhas do hit
+    g.fillStyle = '#ffe45e';
+    [[23, 5], [8, 7], [16, 1]].forEach(([x, y]) => { g.fillRect(x, y - 1, 1, 3); g.fillRect(x - 1, y, 3, 1); });
+  }
+  if (P.varrer > 0) {                                                                         // rastro da rasteira
+    for (let a = -1.3, i = 0; a <= 1.3; a += .16, i++) {
+      g.fillStyle = i % 2 ? '#ffffff' : '#bfe3ff';
+      g.fillRect(16 + Math.round(Math.cos(a) * 14 * P.varrer), 28 + Math.round(Math.sin(a) * 3), 2, 1);
+    }
+  }
+  return cv;
+}
+function espelhar(cv) {
+  const o = document.createElement('canvas'); o.width = o.height = QF;
+  const g = o.getContext('2d'); g.imageSmoothingEnabled = false; g.translate(QF, 0); g.scale(-1, 1); g.drawImage(cv, 0, 0);
+  return o;
+}
+
+// Converte a paleta antiga (usada pelos NPCs) para a paleta dos sprites
+const PALN = new WeakMap(); let palId = 0;
+function novaPal(p) {
+  let n = PALN.get(p);
+  if (!n) {
+    n = { id: ++palId, hair: p.cab, hair2: sombrear(p.cab, 30), skin: p.pele, skin2: sombrear(p.pele, -30), gi: p.gi, gi2: p.som,
+      belt: p.faixa, foot: p.pele, eye: '#1a1624', iris: p.iris || '#3a2418', arm: p.braco ? 'skin' : 'gi', band: p.testa,
+      bun: !!p.coque, wrap: p.punho || null, espeto: !!p.espeto, trancas: !!p.trancas };
+    PALN.set(p, n);
+  }
+  return n;
+}
+// Os quadros são desenhados só quando aparecem pela primeira vez (e guardados)
+const SPQ = new Map();
+const SCR = document.createElement('canvas'); SCR.width = SCR.height = QF;
+function quadro(pal, anim, view, f) {
+  const key = pal.id + '|' + anim + '|' + view + '|' + f;
+  let c = SPQ.get(key);
+  if (!c) {
+    if (view === 'L') c = espelhar(quadro(pal, anim, 'R', f));
+    else { const p = ANIMS[anim].fn(f); p.ph = f; c = renderFrame(p, view, pal); }
+    SPQ.set(key, c);
+  }
+  return c;
+}
+const VISTA8 = ['R', 'R', 'D', 'L', 'L', 'L', 'U', 'R'];       // 8 direções do jogo -> 4 vistas do sprite
+function personagem(sx, sy, dir, anim, f, palAntiga, flash) {
+  let q = quadro(novaPal(palAntiga), anim, VISTA8[dir], f);
+  if (flash) {                                                    // piscada branca ao levar dano
+    const t = SCR.getContext('2d'); t.clearRect(0, 0, QF, QF); t.drawImage(q, 0, 0);
+    t.globalCompositeOperation = 'source-atop'; t.fillStyle = '#fff'; t.fillRect(0, 0, QF, QF); t.globalCompositeOperation = 'source-over';
+    q = SCR;
+  }
+  ctx.drawImage(q, Math.round(sx) - 16, Math.round(sy) - 31);
+}
+// Qual animação/quadro cada lutador usa agora
+function animJogador() {
+  const t = jog.t;
+  switch (jog.est) {
+    case 'ataque': {
+      const tk = jog.tec, tot = tk.prep + tk.ativo + tk.rec;
+      const anim = tk.pose === 'chute' ? (/lateral|giratório/.test(tk.nome) ? 'chute2' : 'chute') : 'soco';
+      return [anim, Math.min(7, Math.floor(t / tot * 8))];
+    }
+    case 'esquiva': return ['esquiva', Math.min(7, Math.floor(t / .26 * 8))];
+    case 'dano': return ['hit', Math.min(7, Math.floor((.28 - t) / .28 * 8))];
+    case 'ko': return ['caido', Math.min(7, Math.floor(t / .8 * 8))];
+    case 'especial': return t < ESPECIAL.prep ? ['vitoria', 2] : ['soco', 4];
+    default:
+      if (jog.def) return ['defesa', Math.floor(tempo * 10) % 8];
+      if (jog.anda) return ['walk', Math.floor(jog.fase / (Math.PI * 2) * 8) % 8];
+      return ['idle', Math.floor(tempo * 5) % 4];
+  }
+}
+function animInimigo(o) {
+  if (!o.vivo) return ['caido', Math.min(7, Math.floor((.5 - o.t) / .5 * 8))];
+  if (o.stun > 0) return ['hit', Math.max(0, Math.min(7, Math.floor((.45 - o.stun) / .45 * 8)))];
+  if (o.est === 'prep') return ['soco', Math.min(2, Math.floor((.5 - o.t) / .5 * 3))];                 // levanta o punho (avisa o golpe)
+  if (o.est === 'golpe') return ['soco', 3 + Math.min(2, Math.floor((.18 - o.t) / .18 * 3))];
+  if (o.est === 'rec') return ['soco', o.t > .35 ? 6 : 7];
+  if (o.anda) return ['walk', Math.floor(o.fase / (Math.PI * 2) * 8) % 8];
+  return ['idle', Math.floor(tempo * 5 + o.x) % 4];
+}
+// Rastro em arco do golpe (efeito de anime)
+function efeitoGolpe(sx, sy, dir) {
+  const tk = jog.tec; if (jog.est !== 'ataque' || jog.t < tk.prep - .02 || jog.t > tk.prep + tk.ativo + .08) return;
+  const v = DIRV[dir], p = [-v[1], v[0]], cx = sx + v[0] * 15, cy = sy - 13 + v[1] * 7.5;
+  for (let i = -3; i <= 3; i++) {
+    const fw = 3 - i * i * .35;
+    ctx.fillStyle = i % 2 ? '#ffffff' : '#ffe45e';
+    ctx.fillRect(Math.round(cx + p[0] * i * 2.4 + v[0] * fw), Math.round(cy + p[1] * i * 1.4 + v[1] * fw * .5), 2, 2);
+  }
+}
+// Akira: cabelo castanho espetado, quimono branco; a faixa muda com a graduação
+const PAL_AKIRAS = {};
+const PAL_AKIRA = () => PAL_AKIRAS[estado.faixa] || (PAL_AKIRAS[estado.faixa] =
+  { gi: '#f4f1ea', som: '#a9aebd', pele: '#cf9168', cab: '#4a2c22', testa: null, faixa: FAIXAS[estado.faixa].cor, espeto: true, iris: '#7a4a2a' });
+
 
 /* =====================================================================
    14. RENDERIZAÇÃO (camadas: chão -> objetos/personagens por profundidade -> efeitos)
@@ -1699,21 +1885,15 @@ const PAL_AKIRA = () => ({ gi: '#f6f4ee', som: '#a9aebd', pele: '#cf9168', cab: 
 const folhas = Array.from({ length: 14 }, (_, i) => ({ x: Math.random() * 500, y: Math.random() * 300, vx: 8 + Math.random() * 12, vy: 10 + Math.random() * 10, c: i % 2 ? '#8fd45a' : '#c9e07a' }));
 const spr = (s, x, y) => ctx.drawImage(s.c, Math.round(x - s.ax), Math.round(y - s.ay));
 
-function poseJogador() {
-  switch (jog.est) {
-    case 'ataque': return jog.tec.pose;
-    case 'esquiva': return 'esq';
-    case 'dano': return 'idle';
-    case 'ko': return 'ko';
-    case 'especial': return jog.t < ESPECIAL.prep ? 'vit' : 'soco';
-    default: return jog.def ? 'def' : jog.anda ? 'walk' : 'idle';
-  }
-}
 function desenharObj(o, sx, sy) {
   switch (o.tipo) {
-    case 'jogador': personagem(sx, sy, o.dir, poseJogador(), o.fase, PAL_AKIRA(), o.flash > 0); break;
+    case 'jogador': {
+      const [an, fr] = animJogador();
+      personagem(sx, sy, o.dir, an, fr, PAL_AKIRA(), o.flash > 0);
+      efeitoGolpe(sx, sy, o.dir); break;
+    }
     case 'npc': {
-      personagem(sx, sy, o.dir, 'idle', 0, o.pal, false);
+      personagem(sx, sy, o.dir, 'relax', Math.floor(tempo * 4 + o.x) % 4, o.pal, false);
       ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
       const w = ctx.measureText(o.nome).width + 6;
       ctx.fillStyle = 'rgba(15,20,35,.75)'; ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - 38), Math.round(w), 9);
@@ -1722,8 +1902,8 @@ function desenharObj(o, sx, sy) {
     }
     case 'inimigo': {
       if (!o.vivo && Math.floor(o.t * 20) % 2) break;
-      const pose = !o.vivo ? 'ko' : o.est === 'golpe' ? 'soco' : o.est === 'prep' ? 'prep' : o.anda ? 'walk' : 'idle';
-      personagem(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, o.dir, pose, o.fase, o.pal, o.flash > 0);
+      const [an, fr] = animInimigo(o);
+      personagem(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, o.dir, an, fr, o.pal, o.flash > 0);
       if (o.vivo && o.hp < o.hpMax) { R(ctx, Math.round(sx) - 8, Math.round(sy) - 33, 16, 3, '#000'); R(ctx, Math.round(sx) - 7, Math.round(sy) - 32, Math.max(0, Math.round(14 * o.hp / o.hpMax)), 1, '#e0453a'); }
       if (o.est === 'prep') { ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4040'; ctx.fillText('!', Math.round(sx), Math.round(sy) - 36); }
       break;

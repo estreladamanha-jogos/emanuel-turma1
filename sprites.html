@@ -117,7 +117,7 @@
    1. FERRAMENTAS DE PIXEL ART
    ===================================================================== */
 const F = 32;                                   // tamanho de cada quadro (32 x 32)
-const OUTC = '#1a1624';                         // cor do contorno
+const OUTC = '#241c2c';                         // cor do contorno
 
 // Linha grossa feita de quadradinhos (pixel art)
 function linha(g, x0, y0, x1, y1, w, c) {
@@ -148,10 +148,10 @@ function ik(rx, ry, tx, ty, l1, l2, s) {
 const PAL = {
   // Akira: cabelo castanho espetado, quimono branco, faixa preta (troque pal.belt para mudar a faixa)
   akira: { hair: '#4a2c22', hair2: '#6b4332', skin: '#c98a62', skin2: '#a9694a', gi: '#f4f1ea', gi2: '#a9aebd',
-           belt: '#2b2b33', foot: '#e09a68', eye: '#1a1624', arm: 'gi', band: null, bun: false, wrap: null },
+           belt: '#2b2b33', foot: '#e09a68', eye: '#1a1624', iris: '#7a4a2a', arm: 'gi', band: null, bun: false, wrap: null, espeto: true },
   // Bandido do Dojo: testeira vermelha, coque, quimono cinza sem manga, munhequeiras
   bandido: { hair: '#17171c', hair2: '#33333d', skin: '#f0a874', skin2: '#c7824f', gi: '#3a3a4a', gi2: '#26262f',
-             belt: '#d42a2a', foot: '#e8a070', eye: '#1a1624', arm: 'skin', band: '#d42a2a', bun: true, wrap: '#d42a2a' }
+             belt: '#d42a2a', foot: '#e8a070', eye: '#1a1624', iris: '#3a2418', arm: 'skin', band: '#d42a2a', bun: true, wrap: '#d42a2a', espeto: false }
 };
 
 /* =====================================================================
@@ -224,10 +224,11 @@ function rig(t, P, view, pal) {
   const ln = P.ln || 0, hd = P.hd || 0, wave = Math.round(Math.sin((P.ph || 0) * 1.3));
   const shx = cx + ln, shy = hy - 8 + Math.round(Math.abs(ln) * .3);          // ombros
   const k = view === 'D' ? .35 : view === 'U' ? -.35 : 0;                     // "para frente" vira para baixo/cima na tela
+  const iris = pal.iris || '#3a2418', rubor = '#e59a7a', boca = '#8a4a3a';
   for (const pass of [1, 0]) {
     const out = pass === 1, E = pass, C = c => (out ? OUTC : c);
     const R = (x, y, w, h, c) => { t.fillStyle = C(c); t.fillRect(Math.round(x) - E, Math.round(y) - E, w + 2 * E, h + 2 * E); };
-    const D = (x, y, w, h, c) => { if (!out) { t.fillStyle = c; t.fillRect(Math.round(x), Math.round(y), w, h); } };   // detalhes
+    const D = (x, y, w, h, c) => { if (!out) { t.fillStyle = c; t.fillRect(Math.round(x), Math.round(y), w, h); } };   // detalhes (só nas cores)
     const L = (x0, y0, x1, y1, w, c) => linha(t, x0, y0, x1, y1, w + 2 * E, C(c));
     const Lf = (x0, y0, x1, y1, w, c) => { if (!out) linha(t, x0, y0, x1, y1, w, c); };
     const braco = pal.arm === 'skin' ? pal.skin : pal.gi;
@@ -238,6 +239,10 @@ function rig(t, P, view, pal) {
       if (!out && pal.wrap) linha(t, (j.jx + j.tx) / 2, (j.jy + j.ty) / 2, j.tx, j.ty, 3, pal.wrap);
       R(j.tx - (tam >> 1), j.ty - (tam >> 1), tam, tam, pal.skin);
     };
+    const espetos = (hx, hc) => {                                           // cabelo de anime: espetos ou capa lisa
+      if (pal.espeto) { R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 8, 3, 3, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair); }
+      else R(hx - 4, hc - 6, 9, 1, pal.hair);
+    };
 
     if (view === 'R') {
       /* ---------- de lado ---------- */
@@ -245,14 +250,20 @@ function rig(t, P, view, pal) {
       mao(sx, sy, sx + P.ba[0], sy + P.ba[1], 1, 3);                                  // braço de trás
       let j = perna(cx, hy, cx + P.bf[0], G - P.bf[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);   // perna de trás
       L(cx, hy - 1, shx, shy + 1, 7, pal.gi); Lf(cx - 3, hy - 1, shx - 3, shy + 1, 1, pal.gi2);       // tronco
+      Lf(cx + 3, hy - 1, shx + 3, shy + 1, 1, '#ffffff');                                              // luz na frente do quimono
       R(cx - 3, hy - 3, 7, 2, pal.belt); R(cx - 5, hy - 3, 2, 3, pal.belt); R(cx - 6, hy - 1, 1, 3, pal.belt);
       const hx = shx + hd + 1, hc = shy - 4;                                          // cabeça
+      if (pal.trancas) R(hx - 6, hc - 1, 2, 12, pal.hair);
       R(hx - 4, hc - 4, 8, 8, pal.skin);
       R(hx - 5, hc - 5, 9, 4, pal.hair); R(hx - 5, hc - 1, 4, 5, pal.hair);
-      R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
+      espetos(hx, hc);
       if (pal.bun) R(hx - 7, hc - 7, 5, 4, pal.hair);
       if (pal.band) { R(hx - 5, hc - 2, 10, 2, pal.band); R(hx - 8, hc - 2 + wave, 3, 1, pal.band); R(hx - 9, hc - 1 + wave, 2, 1, pal.band); }
-      D(hx + 1, hc, 1, 2, pal.eye); D(hx + 1, hc - 2, 3, 1, pal.hair2); D(hx + 3, hc + 2, 2, 1, '#8a4a3a'); D(hx - 1, hc + 1, 2, 2, pal.skin2);
+      D(hx - 4, hc - 5, 3, 1, pal.hair2); D(hx - 5, hc - 1, 1, 3, pal.hair2);        // brilho do cabelo
+      D(hx + 1, hc - 3, 3, 1, pal.hair); D(hx + 3, hc - 2, 1, 1, pal.hair);          // franja
+      D(hx + 1, hc - 1, 2, 3, pal.eye); D(hx + 1, hc, 2, 2, iris); D(hx + 2, hc, 1, 1, '#ffffff');   // olho grande com brilho
+      D(hx, hc + 2, 2, 1, rubor); D(hx + 2, hc + 2, 2, 1, boca); D(hx - 1, hc + 1, 2, 2, pal.skin2);
+      if (pal.trancas) D(hx - 6, hc + 9, 2, 1, '#e8c860');
       j = perna(cx, hy, cx + P.ff[0], G - P.ff[1], -1); R(j.tx - 1, j.ty - 1, 4, 2, pal.foot);        // perna da frente
       mao(sx, sy, sx + P.fa[0], sy + P.fa[1], 1, 3);                                  // braço da frente
     } else {
@@ -260,7 +271,7 @@ function rig(t, P, view, pal) {
       const fr = view === 'D', Gy = G - 1;
       const pernaDU = (s, f) => { const j = perna(cx + s * 2, hy, cx + s * 3, Gy - f[1] + f[0] * k, -s); R(j.tx - 2, j.ty - 1, 4, 2, pal.foot); };
       pernaDU(-1, P.bf); pernaDU(1, P.ff);
-      L(cx, hy, shx, shy + 1, 9, pal.gi); Lf(cx + 3, hy, shx + 3, shy + 1, 2, pal.gi2);              // tronco
+      L(cx, hy, shx, shy + 1, 9, pal.gi); Lf(cx + 3, hy, shx + 3, shy + 1, 2, pal.gi2); Lf(cx - 4, hy - 1, shx - 4, shy + 1, 1, '#ffffff');   // tronco
       R(cx - 4, hy - 3, 9, 2, pal.belt); R(cx - 1, hy - 3, 2, 3, pal.belt); R(cx, hy - 1, 1, 3, pal.belt); R(cx - 2, hy - 1, 1, 3, pal.belt);
       if (fr) { Lf(cx - 3, shy, cx, shy + 5, 1, pal.gi2); Lf(cx + 3, shy, cx, shy + 5, 1, pal.gi2); D(cx - 1, shy, 3, 2, pal.skin); }
       const ombro = (s, h) => {
@@ -269,21 +280,27 @@ function rig(t, P, view, pal) {
       };
       ombro(-1, P.ba); ombro(1, P.fa);
       const hx = shx + Math.round(hd * .3), hc = shy - 4;                             // cabeça
+      if (pal.trancas) {                                                              // tranças da Rita
+        R(hx - 7, hc, 2, 12, pal.hair); R(hx + 6, hc, 2, 12, pal.hair);
+        D(hx - 7, hc + 9, 2, 1, '#e8c860'); D(hx + 6, hc + 9, 2, 1, '#e8c860');
+      }
       if (fr) {
         R(hx - 4, hc - 4, 9, 8, pal.skin);
         R(hx - 5, hc - 5, 11, 4, pal.hair); R(hx - 5, hc - 1, 2, 4, pal.hair); R(hx + 4, hc - 1, 2, 4, pal.hair);
-        R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
-        if (pal.bun) R(hx - 2, hc - 8, 5, 4, pal.hair);
+        espetos(hx, hc);
+        if (pal.bun) R(hx - 1, hc - 8, 3, 3, pal.hair);
         if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx + 6, hc - 2 + wave, 3, 1, pal.band); R(hx - 8, hc - 1 - wave, 3, 1, pal.band); }
-        D(hx - 3, hc + 1, 2, 2, pal.eye); D(hx + 1, hc + 1, 2, 2, pal.eye);
-        D(hx - 3, hc, 3, 1, pal.hair2); D(hx + 1, hc, 3, 1, pal.hair2); D(hx - 1, hc + 3, 2, 1, '#8a4a3a');
+        D(hx - 4, hc - 5, 4, 1, pal.hair2); D(hx + 2, hc - 4, 2, 1, pal.hair2);      // brilho do cabelo
+        D(hx - 4, hc - 3, 2, 3, pal.hair); D(hx - 1, hc - 3, 3, 2, pal.hair); D(hx + 2, hc - 3, 3, 3, pal.hair);   // franja
+        for (const ex of [hx - 3, hx + 1]) { D(ex, hc, 2, 1, pal.eye); D(ex, hc + 1, 2, 2, iris); D(ex, hc + 1, 1, 1, '#ffffff'); }   // olhos grandes
+        D(hx - 4, hc + 3, 2, 1, rubor); D(hx + 3, hc + 3, 2, 1, rubor); D(hx - 1, hc + 3, 2, 1, boca);
       } else {
         R(hx - 4, hc - 4, 9, 8, pal.hair); R(hx - 5, hc - 5, 11, 5, pal.hair);
-        R(hx - 4, hc - 7, 3, 2, pal.hair); R(hx - 1, hc - 7, 3, 2, pal.hair); R(hx + 2, hc - 7, 3, 2, pal.hair);
-        if (pal.bun) R(hx - 2, hc - 8, 5, 4, pal.hair);
+        espetos(hx, hc);
+        if (pal.bun) R(hx - 1, hc - 8, 3, 3, pal.hair);
         D(hx - 2, hc + 3, 5, 1, pal.skin);
         if (pal.band) { R(hx - 5, hc - 2, 11, 2, pal.band); R(hx - 1, hc, 1, 6 + wave, pal.band); R(hx + 1, hc, 1, 5 - wave, pal.band); }
-        D(hx - 3, hc - 3, 2, 1, pal.hair2); D(hx + 1, hc - 4, 3, 1, pal.hair2);
+        D(hx - 3, hc - 4, 3, 1, pal.hair2); D(hx + 1, hc - 3, 3, 1, pal.hair2); D(hx - 1, hc - 1, 1, 3, pal.hair2);
       }
     }
   }
