@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Karatê RPG Isométrico</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
 <style>
   /* ===== Base: o canvas é pequeno e o CSS estica (pixel art nítida) ===== */
   html, body {
@@ -37,7 +38,26 @@
   .vida i { background: linear-gradient(180deg, #fff3a0 0%, #ffd23a 30%, #ff7a1f 65%, #d8281f 100%); }
   .aura i { background: linear-gradient(180deg, #d6fbff 0%, #5fe0ff 35%, #2a8cff 70%, #1a46c8 100%); }
   .xp i { background: linear-gradient(180deg, #fff 0%, #f4d03f 40%, #b8860b 100%); }
-  #hLoc { color: #5ff3ff; font-weight: bold; text-shadow: 0 0 6px #00e5ff, 2px 2px 0 #000; }
+  /* ===== HUD gótico (estilo Castlevania): ferro forjado, joias vermelhas, fonte medieval ===== */
+  body.gotico #hud {
+    font-family: 'Cinzel', 'Times New Roman', serif; font-style: normal; font-weight: 800; letter-spacing: .6px;
+    background: radial-gradient(circle at 12px 12px, #c9a24a 0 2px, transparent 3px), radial-gradient(circle at calc(100% - 12px) 12px, #c9a24a 0 2px, transparent 3px), linear-gradient(180deg, #25121a 0%, #0b0508 100%);
+    border: 4px solid transparent; border-image: linear-gradient(135deg, #b5bac8, #3a3d48 35%, #9096a6 60%, #2a2c36) 1;
+    box-shadow: 0 0 0 2px #000, 0 0 22px rgba(190, 20, 50, .55), inset 0 0 0 2px #14080c, inset 0 0 18px rgba(0, 0, 0, .8);
+  }
+  body.gotico .barra { border: 3px solid #6c7080; box-shadow: 0 0 0 1px #000, 2px 2px 0 #000, inset 0 0 6px #000; background: #12060a; overflow: visible; }
+  body.gotico .barra::before {
+    content: ''; position: absolute; left: -12px; top: 50%; width: 12px; height: 12px; margin-top: -8px; border-radius: 50%; transform: skewX(15deg);
+    background: radial-gradient(circle at 35% 30%, #fff 0 12%, #ff3050 32%, #6a0618 92%); box-shadow: 0 0 0 2px #c9a24a, 0 0 8px #ff2040; z-index: 2;
+  }
+  body.gotico .vida i { background: linear-gradient(180deg, #ffb0bb 0%, #e0233c 38%, #8a0a22 75%, #4a0212 100%); }
+  body.gotico .aura i { background: linear-gradient(180deg, #e6d2ff 0%, #a56bff 38%, #5a2ad0 75%, #2a1478 100%); }
+  body.gotico .xp i { background: linear-gradient(180deg, #fff0b8 0%, #e0b84a 40%, #8a6414 100%); }
+  body.gotico .barra span { font-family: 'Cinzel', serif; font-weight: 800; letter-spacing: 1px; }
+  body.gotico #dialogo, body.gotico #menu { font-family: 'Cinzel', 'Times New Roman', serif; border-color: #8a8f9e; box-shadow: 0 0 0 2px #000, 0 0 20px rgba(190, 20, 50, .45); }
+  body.gotico #dialogo h2 { font-family: 'UnifrakturCook', 'Cinzel', serif; color: #e0b84a; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+  body.gotico #aviso { font-family: 'Cinzel', serif; background: rgba(40, 10, 20, .95); color: #f0d890; border: 2px solid #c9a24a; }
+  #hLoc { font-family: inherit; color: #5ff3ff; font-weight: bold; text-shadow: 0 0 6px #00e5ff, 2px 2px 0 #000; }
   #hMissao { color: #f4d03f; font-size: 11px; }
   #hCombo { color: #bcd; font-size: 11px; }
 
@@ -147,7 +167,7 @@
 
 <footer id="dica">
   WASD/Setas andar • J bater • K técnica de aura • Espaço esquivar • L defender<br>
-  B visual retrô/HD • G grade neon • Shift correr • V pular • C rajada de socos • T comemorar • Shift+P exportar sprites<br>
+  B visual gótico/retrô/HD • G grade neon • Shift correr • V pular • C rajada de socos • T comemorar • Shift+P exportar sprites<br>
   E interagir • M menu • 1-4 trocar combo • Q comer • Shift+R apagar save
 </footer>
 
@@ -225,13 +245,13 @@ const CONEXOES = [
 
 // Paletas dos personagens (o desenho é o mesmo, só mudam as cores)
 // Bandidos do dojo: testeira vermelha, coque, quimono cinza sem manga e munhequeiras (como na folha de sprites)
-const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true, cabelo: 'coque', iris: '#9a2a1a', olho: 'angry' };
-const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true, cabelo: 'coque', iris: '#2a4a9a', olho: 'angry', esc: 1.04 };
-const PAL_MESTRE = { gi: '#4a2030', som: '#341622', pele: '#d98e60', cab: '#e8e8e8', testa: '#e0b020', faixa: '#e0b020', braco: '#d98e60', punho: '#e0b020', coque: true, cabelo: 'coque', iris: '#8a6a1a', olho: 'angry', esc: 1.14 };
+const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true, cabelo: 'coque', iris: '#9a2a1a', olho: 'angry', capa: '#3a1250' };
+const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true, cabelo: 'coque', iris: '#2a4a9a', olho: 'angry', esc: 1.04, capa: '#122a66' };
+const PAL_MESTRE = { gi: '#4a2030', som: '#341622', pele: '#d98e60', cab: '#e8e8e8', testa: '#e0b020', faixa: '#e0b020', braco: '#d98e60', punho: '#e0b020', coque: true, cabelo: 'coque', iris: '#8a6a1a', olho: 'angry', esc: 1.14, capa: '#5a0a1c' };
 const PAL_RITA = { gi: '#c0486a', som: '#8f3350', pele: '#7a4a32', cab: '#14100e', testa: null, faixa: '#e8c860', trancas: true, cabelo: 'tranca', iris: '#3a2a1a', boca: 'smile' };
 const PAL_MONGE = { gi: '#d98a2a', som: '#a8671c', pele: '#d9a37c', cab: '#d9a37c', testa: null, faixa: '#7a4a1a', cabelo: 'careca', iris: '#5a3a1a', boca: 'smile', esc: .96 };
 const PAL_REN = { gi: '#2f7a4a', som: '#235c37', pele: '#e0b08a', cab: '#3a2a1a', testa: null, faixa: '#222', cabelo: 'curto', iris: '#2a6a3a', boca: 'smile' };
-const PAL_KENJI = { gi: '#3b4a6b', som: '#2b3650', pele: '#d9a37c', cab: '#dcdcdc', testa: null, faixa: '#222', cabelo: 'curto', iris: '#4a5a7a' };
+const PAL_KENJI = { gi: '#3b4a6b', som: '#2b3650', pele: '#d9a37c', cab: '#dcdcdc', testa: null, faixa: '#222', cabelo: 'curto', iris: '#4a5a7a', capa: '#1e2a50' };
 const PAL_DAVI = { gi: '#f6f6f2', som: '#d3d7de', pele: '#f1c9a5', cab: '#8a5a2a', testa: null, faixa: '#f2f2f2', cabelo: 'espeto', iris: '#6a4a2a', boca: 'smile', esc: .86 };
 const PAL_PIETRA = { gi: '#a13a4a', som: '#7d2c39', pele: '#f1c9a5', cab: '#d9582b', testa: null, faixa: '#222', cabelo: 'rabo', iris: '#2a6a8a', boca: 'smile', esc: .86 };
 const PAL_HANA = { gi: '#7b5aa6', som: '#5d4380', pele: '#e0b08a', cab: '#3a2a3a', testa: null, faixa: '#e8c860', cabelo: 'longo', iris: '#6a3a8a', boca: 'smile' };
@@ -1044,6 +1064,25 @@ function paredeColunas(g, x1, y1, dx, n, cor, cor2) {
     R(g, x, y - 10, 1, 10, cor2); R(g, x, y - WH, 1, 3, '#5a3a22');
   }
 }
+// Piso de castelo gótico: lajes de pedra com juntas e bisel nos tiles de pedra/piso/tatame + luar azulado em tudo
+function lajesGoticas(m, g, c) {
+  const PEDRAS = [T.PEDRA, T.PISO, T.TATAME, T.LAJE, T.TERRA, T.CAVERNA, T.PONTE];
+  g.save(); g.lineCap = 'round';
+  for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) {
+    const t = m.tiles[j][i]; if (!PEDRAS.includes(t)) continue;
+    const x = (i - j) * 16 - 16 + m.ox, y = (i + j) * 8 + m.oy, h = h2(i, j);
+    const L = (x0, y0, x1, y1, cor, w) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.lineWidth = w; g.strokeStyle = cor; g.stroke(); };
+    g.save(); g.beginPath(); g.moveTo(x + 16, y); g.lineTo(x + 32, y + 8); g.lineTo(x + 16, y + 16); g.lineTo(x, y + 8); g.closePath(); g.clip();
+    g.fillStyle = 'rgba(' + (30 + h * 30 | 0) + ',' + (34 + h * 24 | 0) + ',' + (70 + h * 30 | 0) + ',.30)'; g.fillRect(x, y, 32, 16);       // cada tile com um tom de pedra diferente
+    L(x + 8, y + 4, x + 24, y + 12, 'rgba(8,6,24,.55)', .8); L(x + 24, y + 4, x + 8, y + 12, 'rgba(8,6,24,.55)', .8);                          // juntas das 4 lajes
+    L(x + 8, y + 5, x + 24, y + 13, 'rgba(190,200,255,.16)', .6); L(x + 24, y + 5, x + 8, y + 13, 'rgba(190,200,255,.16)', .6);            // brilho do bisel
+    if (h > .72) { g.fillStyle = 'rgba(8,6,24,.28)'; g.beginPath(); g.moveTo(x + 16, y + 2); g.lineTo(x + 24, y + 6); g.lineTo(x + 16, y + 9); g.lineTo(x + 10, y + 6); g.closePath(); g.fill(); }   // laje rachada/escura
+    g.restore();
+    L(x + 16, y, x + 32, y + 8, 'rgba(8,6,24,.6)', .9); L(x + 16, y, x, y + 8, 'rgba(8,6,24,.6)', .9);
+  }
+  g.restore();
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.fillStyle = m.interior ? 'rgba(40,24,70,.30)' : 'rgba(40,52,120,.34)'; g.fillRect(0, 0, c.width / SC, c.height / SC); g.restore();   // luar frio em tudo
+}
 // Grade de piso isométrico neon (estilo arcade SNK): linhas ciano, a cada 4 tiles uma linha magenta
 function gradeDoMapa(m) {
   const c = document.createElement('canvas'); c.width = Math.ceil((m.w + m.h) * 16 * SC); c.height = Math.ceil(((m.w + m.h) * 8 + (m.interior ? 60 : 6) + 6) * SC);
@@ -1095,6 +1134,7 @@ function prepararCache(m) {
     g.beginPath(); pts.forEach((p, k) => (k ? g.lineTo(p[0] + m.ox, p[1] + m.oy) : g.moveTo(p[0] + m.ox, p[1] + m.oy))); g.closePath();
     g.fillStyle = '#b83a3a'; g.fill(); g.strokeStyle = '#e8c860'; g.lineWidth = 1.2; g.stroke();
   }
+  if (GOT.on) lajesGoticas(m, g, c);
   if (PIX.on) pixelarCv(c);
   m.cache = c; m.cacheSC = SC; m.grade = gradeDoMapa(m);
 }
@@ -1145,9 +1185,11 @@ document.querySelectorAll('.btn').forEach(b => {                       // botõe
    7. TELA, CÂMERA E COLISÃO
    ===================================================================== */
 const canvas = document.getElementById('jogo'), ctx = canvas.getContext('2d');
-const PIX = { on: true };                           // true = visual retrô KOF/SNK (pixel art nítida); false = anime HD
-let gradeNeon = true;
-try { PIX.on = localStorage.getItem('karate-visual') !== 'hd'; } catch (e) {}
+const PIX = { on: false }, GOT = { on: true };       // PIX = visual retrô KOF/SNK (pixel nítido); GOT = visual gótico (Castlevania); nenhum dos dois = anime HD
+let gradeNeon = true, MODO = 'gotico', fundoGot = null;
+try { MODO = localStorage.getItem('karate-visual') || 'gotico'; } catch (e) {}
+const aplicarModo = () => { PIX.on = MODO === 'retro'; GOT.on = MODO === 'gotico'; };
+aplicarModo();
 let W = 480, H = 270, SC = 2, vinheta = null;      // SC = zoom do mundo pixelado; o canvas tem resolução cheia (Akira não é pixel art)
 const camera = { x: 0, y: 0 };
 let shake = 0, hitstop = 0, tempo = 0;
@@ -1157,15 +1199,16 @@ function redimensionar() {
   const novo = PIX.on ? 1 : S;                                     // retrô: desenha pequeno e o CSS estica (pixels nítidos)
   if (SC !== novo) { SC = novo; if (typeof Akira !== 'undefined') Akira.limparCache(); if (mapa) prepararCache(mapa); }
   canvas.width = W * SC; canvas.height = H * SC;
-  canvas.classList.toggle('retro', PIX.on);
+  canvas.classList.toggle('retro', PIX.on); document.body.classList.toggle('gotico', GOT.on); fundoGot = null;
   ctx.imageSmoothingEnabled = false;
   ctx.setTransform(SC, 0, 0, SC, 0, 0);
   vinheta = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .4, W / 2, H / 2, Math.max(W, H) * .8);
-  vinheta.addColorStop(0, 'rgba(0,10,0,0)'); vinheta.addColorStop(1, PIX.on ? 'rgba(24,0,48,.5)' : 'rgba(0,10,0,.4)');
+  vinheta.addColorStop(0, 'rgba(0,10,0,0)'); vinheta.addColorStop(1, PIX.on ? 'rgba(24,0,48,.5)' : GOT.on ? 'rgba(8,0,22,.62)' : 'rgba(0,10,0,.4)');
 }
 function alternarVisual() {                                         // só muda o visual; a mecânica é a mesma
-  PIX.on = !PIX.on; try { localStorage.setItem('karate-visual', PIX.on ? 'retro' : 'hd'); } catch (e) {}
-  SC = -1; redimensionar(); aviso(PIX.on ? 'Visual: RETRÔ KOF (pixel art)' : 'Visual: ANIME HD');
+  MODO = MODO === 'gotico' ? 'retro' : MODO === 'retro' ? 'hd' : 'gotico'; aplicarModo();
+  try { localStorage.setItem('karate-visual', MODO); } catch (e) {}
+  SC = -1; redimensionar(); aviso(MODO === 'gotico' ? 'Visual: GÓTICO (Castlevania)' : MODO === 'retro' ? 'Visual: RETRÔ KOF (pixel art)' : 'Visual: ANIME HD');
 }
 // Pixel art de verdade: borda dura (sem serrilhado suave), paleta reduzida e sombras tramadas (xadrez)
 function pixelarCv(c) {
@@ -1395,6 +1438,7 @@ function soltarFolha(o) {                                               // sorte
 function virar() { const v = DIRV[jog.dir][0]; if (v) jog.face = v > 0 ? 1 : -1; jog.costas = DIRV[jog.dir][1] < 0; }   // costas = indo pra cima da tela (4 vistas: DE/DD/CE/CD)   // Akira olha pra esquerda/direita da tela
 function popup(x, y, txt, cor) { textos.push({ x, y, txt, t: 0, cor }); }
 function fagulha(x, y, cor, n) {
+  if (GOT.on && (cor === '#ffe45e' || cor === '#ff6b5a')) { cor = '#d8142e'; n += 3; }                // gótico: respingos de sangue/energia escura
   const [sx, sy] = iso(x, y);
   for (let k = 0; k < n; k++) { const a = Math.random() * 6.28, v = 30 + Math.random() * 40; fagulhas.push({ x: sx, y: sy - 12, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, t: 0, vida: .3 + Math.random() * .2, cor }); }
 }
@@ -1411,11 +1455,18 @@ function fxLinhas(n, vx, vy) {
 }
 function fxCorte(tk, forte) {                                             // rastro em arco na direção real do golpe
   const v = DIRV[jog.dir], [sx, sy] = fxPos(tk.pose === 'chute' ? 12 : 22);
+  if (GOT.on) {                                                          // rastro de luz (estilo chicote) com faíscas neon
+    const ang = Math.atan2(v[1] * .5, v[0]);
+    fx.push({ tipo: 'chicote', x: sx + v[0] * 8, y: sy + v[1] * 4, ang, r: forte ? 24 : 19, t: 0, vida: .22 });
+    const neon = ['#9fe8ff', '#c77dff', '#ffffff', '#ff6ad5'];
+    for (let k = 0; k < (forte ? 12 : 7); k++) { const a = ang + (Math.random() - .5) * 2.2, sp = 40 + Math.random() * 60; fagulhas.push({ x: sx + v[0] * 12 + Math.cos(a) * 12, y: sy + v[1] * 6 + Math.sin(a) * 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 15, t: 0, vida: .3 + Math.random() * .25, cor: neon[k % 4] }); }
+    return;
+  }
   fx.push({ tipo: 'corte', x: sx + v[0] * 8, y: sy + v[1] * 4, ang: Math.atan2(v[1] * .5, v[0]), r: forte ? 22 : 17, t: 0, vida: .15 });
 }
 function fxImpacto(wx, wy, forte) {
   const [sx, sy] = iso(wx, wy);
-  fx.push({ tipo: 'impacto', x: sx, y: sy - 16, tam: forte ? 15 : 10, rot: Math.random() * 6.28, t: 0, vida: .22 });
+  fx.push({ tipo: GOT.on ? 'impactoG' : 'impacto', x: sx, y: sy - 16, tam: forte ? 16 : 11, rot: Math.random() * 6.28, t: 0, vida: .24 });
 }
 
 function iniciarAtaque(i, ix, iy) {
@@ -1952,11 +2003,11 @@ function animJogador() {
   const fr = (n, q) => Math.max(0, Math.min(A[n].frames - 1, Math.round(q * (A[n].frames - 1))));
   switch (jog.est) {
     case 'ataque': {                                                  // o tempo do golpe é "esticado" pra o soco/chute acertar no quadro certo
-      const tk = jog.tec, n0 = TKANIM[jog.tkId] || (tk.pose === 'chute' ? 'kick' : 'punch'), n = n0 + (jog.dir === 2 ? 'S' : ''), an = A[n];   // virado pro sul = vista de frente
+      const tk = jog.tec, n0 = TKANIM[jog.tkId] || (tk.pose === 'chute' ? 'kick' : 'punch'), n = n0 + (jog.dir === 2 ? 'S' : jog.dir === 6 ? 'N' : ''), an = A[n];   // virado pro sul = vista de frente
       const q = t < tk.prep ? t / tk.prep * an.imp : t < tk.prep + tk.ativo ? an.imp + (t - tk.prep) / tk.ativo * (an.seg - an.imp) : an.seg + (t - tk.prep - tk.ativo) / tk.rec * (1 - an.seg);
       return [n, fr(n, q)];
     }
-    case 'rajada': return [jog.dir === 2 ? 'comboS' : 'combo', Math.min(11, Math.floor(t / .72 * 12))];
+    case 'rajada': return [jog.dir === 2 ? 'comboS' : jog.dir === 6 ? 'comboN' : 'combo', Math.min(11, Math.floor(t / .72 * 12))];
     case 'esquiva': return ['dodge', fr('dodge', t / .26)];
     case 'dano': return ['hit', fr('hit', (.28 - t) / .28)];
     case 'ko': return ['ko', fr('ko', t / .8)];
@@ -1976,7 +2027,7 @@ function virarObj(o) { const v = DIRV[o.dir][0]; if (v) o.face = v > 0 ? 1 : -1;
 function animInimigo(o) {                                          // qual animação anime o inimigo usa agora
   if (!o.vivo) return ['ko', Math.max(0, Math.min(5, Math.floor((.5 - o.t) / .5 * 6)))];
   if (o.stun > 0) return ['hit', Math.max(0, Math.min(3, Math.floor((.45 - o.stun) / .45 * 4)))];
-  const S = o.dir === 2 ? 'S' : '';
+  const S = o.dir === 2 ? 'S' : o.dir === 6 ? 'N' : '';
   if (o.est === 'prep') return ['punch' + S, (.5 - o.t) > .25 ? 1 : 0];                    // puxa o braço pra trás (avisa o golpe)
   if (o.est === 'golpe') return ['punch' + S, 2 + Math.min(1, Math.floor((.18 - o.t) / .18 * 2))];
   if (o.est === 'rec') return ['punch' + S, o.t > .35 ? 4 : 5];
@@ -1988,7 +2039,7 @@ const SCR_AK = document.createElement('canvas');
 const ESTILOS = new WeakMap(), ESTILOS_FAIXA = {}; let idEstilo = 0;
 function estiloPal(p) {                                                  // paleta do inimigo/NPC -> estilo anime (cores + cabelo)
   let e = ESTILOS.get(p); if (e) return e;
-  e = Akira.fazEstilo({ id: 'pal' + (idEstilo++), gi: p.gi, pele: p.pele, cab: p.cab, faixa: p.faixa, cabelo: p.cabelo, banda: p.testa, iris: p.iris, olho: p.olho, boca: p.boca, esc: p.esc });
+  e = Akira.fazEstilo({ id: 'pal' + (idEstilo++), gi: p.gi, pele: p.pele, cab: p.cab, faixa: p.faixa, cabelo: p.cabelo, banda: p.testa, iris: p.iris, olho: p.olho, boca: p.boca, esc: p.esc, capa: p.capa });
   ESTILOS.set(p, e); return e;
 }
 const estiloAkira = () => { const c = FAIXAS[estado.faixa].cor; return ESTILOS_FAIXA[c] || (ESTILOS_FAIXA[c] = Akira.ESTILO_AKIRA(c)); };
@@ -2000,6 +2051,13 @@ function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est, costas) {
   if ((alfa == null || alfa >= 1) && PIX.on) {                           // sombra elíptica em pixel (trama), fica no chão mesmo pulando
     const rx = Math.round(13 * est.esc * (1 - Math.min(.5, z / 60)));
     g.globalAlpha = .55; elipse(g, sx, sy, rx, Math.max(2, Math.round(rx * .42)), '#0c061c'); g.globalAlpha = .8; elipse(g, sx, sy, Math.round(rx * .6), Math.max(1, Math.round(rx * .25)), '#0c061c'); g.globalAlpha = 1;
+  } else if ((alfa == null || alfa >= 1) && GOT.on) {                    // sombra dinâmica: estica pra longe da tocha mais próxima
+    let lx = 0, ly = 1, len = 1, d0 = 190;
+    for (const L of LUZES) { const d = Math.hypot(sx - L.x, sy - L.y); if (d < d0) { d0 = d; lx = (sx - L.x) / (d || 1); ly = (sy - L.y) / (d || 1); } }
+    if (d0 < 190) len = 1 + (1 - d0 / 190) * 1.6; else { lx = 0; ly = 1; }
+    const r = 14 * est.esc * (1 - Math.min(.5, z / 60));
+    g.save(); g.translate(sx + lx * 5 * len, sy + ly * 2.4 * len); g.rotate(Math.atan2(ly * .5, lx)); g.scale(len, .42);
+    const gr = g.createRadialGradient(0, 0, 1, 0, 0, r); gr.addColorStop(0, 'rgba(4,2,16,.6)'); gr.addColorStop(1, 'rgba(4,2,16,0)'); g.fillStyle = gr; g.fillRect(-r, -r, r * 2, r * 2); g.restore();
   } else if (alfa == null || alfa >= 1) {                                // sombra suave (fica no chão mesmo pulando)
     g.save(); g.translate(sx, sy); g.scale(1, .42);
     const r = 14 * est.esc * (1 - Math.min(.5, z / 60)), gr = g.createRadialGradient(0, 0, 1, 0, 0, r);
@@ -2009,7 +2067,7 @@ function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est, costas) {
   let img = q;
   if (branco) {                                                          // piscada branca ao levar dano
     SCR_AK.width = q.width; SCR_AK.height = q.height; const t = SCR_AK.getContext('2d');
-    t.drawImage(q, 0, 0); t.globalCompositeOperation = 'source-atop'; t.fillStyle = 'rgba(255,255,255,.75)'; t.fillRect(0, 0, q.width, q.height); img = SCR_AK;
+    t.drawImage(q, 0, 0); t.globalCompositeOperation = 'source-atop'; t.fillStyle = branco === 'r' ? 'rgba(255,30,50,.72)' : 'rgba(255,255,255,.78)'; t.fillRect(0, 0, q.width, q.height); img = SCR_AK;
   }
   g.save(); g.translate(sx, sy - Math.round(z)); g.scale(face, 1);
   if (alfa != null) g.globalAlpha = alfa;
@@ -2069,6 +2127,20 @@ function desenharFx(g) {
     } else if (f.tipo === 'linha') {
       g.globalAlpha = .75 * (1 - p); g.strokeStyle = '#fff'; g.lineWidth = .8; g.lineCap = 'round';
       g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x + f.dx * f.len * (1 + p), f.y + f.dy * f.len * (1 + p)); g.stroke(); g.globalAlpha = 1;
+    } else if (f.tipo === 'chicote') {                                   // rastro de luz: roxo + ciano + núcleo branco (soma de luz)
+      const r = f.r * 1.4 * (.85 + p * .3), cx = f.x - Math.cos(f.ang) * r * .4, cy = f.y - Math.sin(f.ang) * r * .4, a0 = f.ang - 1.5, a1 = f.ang + 1 + p * .5;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+      [[7, 'rgba(170,80,255,.24)'], [3.6, 'rgba(120,220,255,.55)'], [1.4, 'rgba(255,255,255,.95)']].forEach(([w, c]) => { g.globalAlpha = 1 - p; g.lineWidth = w * (1 - p * .5); g.strokeStyle = c; g.beginPath(); g.arc(cx, cy, r, a0, a1); g.stroke(); });
+      g.restore();
+    } else if (f.tipo === 'impactoG') {                                  // explosão de energia escura: núcleo claro, miolo carmesim e espinhos
+      const Rr = f.tam * (.6 + p * 1.1);
+      g.save(); g.globalAlpha = 1 - p * .8;
+      const gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, Rr * 1.4); gr.addColorStop(0, '#fff'); gr.addColorStop(.18, '#ff4a66'); gr.addColorStop(.5, '#7a0a2a'); gr.addColorStop(1, 'rgba(40,0,30,0)');
+      g.fillStyle = gr; g.fillRect(f.x - Rr * 1.5, f.y - Rr * 1.5, Rr * 3, Rr * 3);
+      g.beginPath(); for (let k = 0; k < 16; k++) { const a = f.rot + k * Math.PI / 8, rr = k % 2 ? Rr * .35 : Rr * (k % 4 ? .8 : 1.15); g.lineTo(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr * .8); } g.closePath();
+      g.fillStyle = '#1a0612'; g.fill(); g.lineWidth = .9; g.strokeStyle = '#ff2a4a'; g.lineJoin = 'round'; g.stroke();
+      g.beginPath(); g.arc(f.x, f.y, Rr * .22 * (1 - p), 0, 6.3); g.fillStyle = '#fff'; g.fill();
+      g.restore();
     } else if (f.tipo === 'corte') {
       const r = f.r * (.8 + p * .35), a0 = f.ang - 1.05, a1 = f.ang + 1.05, cx = f.x - Math.cos(f.ang) * r * .35, cy = f.y - Math.sin(f.ang) * r * .35;
       g.globalAlpha = .85 * (1 - p); g.beginPath(); g.arc(cx, cy, r, a0, a1);
@@ -2105,7 +2177,7 @@ const Akira = (() => {
    Tudo é desenhado por código num canvas auxiliar e vira uma sprite sheet.
    ===================================================================== */
 const D2R = Math.PI / 180;
-const CONF = { get pixel() { return typeof PIX !== 'undefined' && PIX.on; } };   // visual retrô: pixel art (borda dura + paleta reduzida)
+const CONF = { get pixel() { return typeof PIX !== 'undefined' && PIX.on; }, get got() { return typeof GOT !== 'undefined' && GOT.on; } };   // pixel = retrô; got = gótico (capa, metal, olhos brilhando)   // visual retrô: pixel art (borda dura + paleta reduzida)
 const AK = { UW: 200, UH: 190, OX: 100, OY: 165, K: .34 };      // quadro (unidades de desenho), pés em (OX,OY), K = escala no mundo
 // Cada animação: quantidade de quadros, fps, se repete. imp/seg = trecho do golpe (fração) onde o soco/chute acerta
 const AKIRA_ANIMATIONS = {
@@ -2318,9 +2390,9 @@ function fazEstilo(c) {
     cab: c.cab, cabS: esc(c.cab, .5), cabL: c.cabL || claro(c.cab, .28), cabL2: claro(c.cab, .55)
   };
   if (c.id && c.id.indexOf('akira') === 0) Object.assign(cor, { cab: '#222850', cabS: '#10142e', cabL: '#3f58b0', cabL2: '#8fa8f0' });
-  return { id: c.id, cor, faixa: c.faixa || '#f2f2f2', cabelo: c.cabelo || 'espeto', banda: c.banda || null, iris: c.iris || '#b4561c', olho: c.olho || null, boca: c.boca || null, esc: c.esc || 1, externo: !!c.externo };
+  return { id: c.id, cor, faixa: c.faixa || '#f2f2f2', cabelo: c.cabelo || 'espeto', banda: c.banda || null, iris: c.iris || '#b4561c', olho: c.olho || null, boca: c.boca || null, esc: c.esc || 1, externo: !!c.externo, capa: c.capa || null, aura: !!c.aura };
 }
-const ESTILO_AKIRA = faixa => fazEstilo({ id: 'akira' + faixa, gi: '#fdfbf6', pele: '#f6c19a', cab: '#222850', faixa, cabelo: 'espeto', externo: true });
+const ESTILO_AKIRA = faixa => fazEstilo({ id: 'akira' + faixa, gi: '#fdfbf6', pele: '#f6c19a', cab: '#222850', faixa, cabelo: 'espeto', externo: true, capa: '#8a1230', aura: true });
 
 function traco(g, ax, ay, bx, by, w, cor) { g.strokeStyle = cor; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
 // Membro com contorno + sombra + luz (cel-shading)
@@ -2348,6 +2420,7 @@ function mao(g, h, ang) {                                      // punho fechado
 function braco(g, S, J, U, F, ang) {
   const { e, h } = J;
   membro(g, e[0], e[1], h[0], h[1], 9, COR.pele, COR.peleS);                         // antebraço (pele)
+  if (CONF.got) bracadeira(g, e, h);
   membro(g, S[0], S[1], e[0], e[1], 13.5, COR.gi, COR.giS);                               // manga do quimono
   const a = Math.atan2(e[1] - S[1], e[0] - S[0]);
   g.save(); g.translate(e[0], e[1]); g.rotate(a);                                        // punho da manga
@@ -2404,7 +2477,7 @@ function tronco(g, J, P, faixa) {
   forma(g, fx, faixa, esc(faixa, .72), 2.2, 2.6);
   const kn = P.costas ? T(7.5, -6) : T(7.5, 7.5);                                        // nó
   g.save(); g.translate(kn[0], kn[1]); g.rotate(J.l);
-  forma(g, c => { c.rect(-4, -4.5, 8, 9); }, faixa, esc(faixa, .7), 1.6, 2.4); g.restore();
+  forma(g, c => { c.rect(-4, -4.5, 8, 9); }, faixa, esc(faixa, .7), 1.6, 2.4); if (CONF.got) gema(g, 0, 0, 2.2, '#ff3050'); g.restore();
 }
 function cabeca(g, J, P, faixa) {
   const C = J.C;
@@ -2485,6 +2558,7 @@ function cabeca(g, J, P, faixa) {
     g.beginPath(); g.moveTo(ox - 5.8, oy - .2 + ang); g.quadraticCurveTo(ox, oy - 7 + ang * 1.5, ox + 6, oy - 1.6);   // pálpebra grossa
     g.lineWidth = 2.5; g.strokeStyle = OUT; g.stroke();
     g.beginPath(); g.moveTo(ox + 5.4, oy - 1.4); g.lineTo(ox + 7.6, oy - 3.4); g.lineWidth = 1.8; g.stroke();
+    if (CONF.got) glowOlho(g, ox + .8, oy, 8);
   }
   // nariz e boca
   g.lineWidth = 1.4; g.strokeStyle = '#a45f48'; g.beginPath(); g.moveTo(12.4, 4.6); g.lineTo(13.6, 6.6); g.lineTo(12, 7); g.stroke();
@@ -2537,8 +2611,57 @@ function cabeca(g, J, P, faixa) {
 function aura(g, J, P) {                                         // brilho azul de energia atrás do corpo
   const H = J.T(18, 0);
   const gr = g.createRadialGradient(H[0], H[1], 6, H[0], H[1], 62);
-  gr.addColorStop(0, 'rgba(140,220,255,.5)'); gr.addColorStop(1, 'rgba(120,200,255,0)');
+  gr.addColorStop(0, CONF.got ? 'rgba(190,110,255,.6)' : 'rgba(140,220,255,.5)'); gr.addColorStop(1, CONF.got ? 'rgba(120,60,255,0)' : 'rgba(120,200,255,0)');
   g.fillStyle = gr; g.globalAlpha = P.glow; g.fillRect(H[0] - 70, H[1] - 70, 140, 140); g.globalAlpha = 1;
+}
+
+
+/* ---------- DETALHES GÓTICOS (estilo Castlevania): capa, ombreiras de metal, braçadeiras, olhos brilhando ---------- */
+function suave(c, pts) {                                         // curva suave passando perto dos pontos
+  c.moveTo((pts[0][0] + pts[pts.length - 1][0]) / 2, (pts[0][1] + pts[pts.length - 1][1]) / 2);
+  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; c.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); }
+  c.closePath();
+}
+function gema(g, x, y, r, cor) {                                 // joia (rubi) com brilho
+  const gr = g.createRadialGradient(x - r * .3, y - r * .3, .2, x, y, r);
+  gr.addColorStop(0, '#fff'); gr.addColorStop(.25, cor || '#ff3050'); gr.addColorStop(1, esc(cor || '#ff3050', .35));
+  g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = gr; g.fill(); g.lineWidth = 1; g.strokeStyle = '#e0b84a'; g.stroke();
+}
+function ombreira(g, p, r) {                                     // ombreira de metal com borda dourada
+  const gr = g.createLinearGradient(p[0] - r, p[1] - r, p[0] + r, p[1] + r);
+  gr.addColorStop(0, '#f6f9ff'); gr.addColorStop(.5, '#aab4cc'); gr.addColorStop(1, '#4d5672');
+  g.beginPath(); g.ellipse(p[0], p[1], r, r * .78, 0, 0, 7); g.fillStyle = gr; g.fill(); g.lineWidth = 2.2; g.strokeStyle = OUT; g.stroke();
+  g.beginPath(); g.ellipse(p[0], p[1], r * .8, r * .6, 0, 3.4, 6.1); g.lineWidth = 1.2; g.strokeStyle = '#e0b84a'; g.stroke();
+  gema(g, p[0], p[1] + r * .05, r * .26, '#ff3050');
+}
+function bracadeira(g, e, h) {                                   // proteção de metal no antebraço
+  const a = [e[0] + (h[0] - e[0]) * .3, e[1] + (h[1] - e[1]) * .3], b = [e[0] + (h[0] - e[0]) * .78, e[1] + (h[1] - e[1]) * .78];
+  traco(g, a[0], a[1], b[0], b[1], 11.6, OUT); traco(g, a[0], a[1], b[0], b[1], 9, '#7c88a8'); traco(g, a[0] - .6, a[1] - .8, b[0] - .6, b[1] - .8, 5.4, '#c9d2e6');
+  traco(g, a[0], a[1], a[0] + (b[0] - a[0]) * .08, a[1] + (b[1] - a[1]) * .08, 10.5, '#e0b84a');
+}
+function glowOlho(g, x, y, r) {                                  // olhos brilhando em vermelho
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,80,50,.7)'); gr.addColorStop(1, 'rgba(255,40,40,0)');
+  g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); g.restore();
+}
+function capaLinhas(g, cam, base, folds, trim) {                 // pinta a capa: tom base, sombra, dobras e borda dourada
+  const cor = EST.capa;
+  forma(g, cam, cor, esc(cor, .5), 5, 3);
+  g.save(); g.beginPath(); cam(g); g.clip(); g.lineCap = 'round';
+  folds.forEach(f => { g.beginPath(); f.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = 1.6; g.strokeStyle = claro(cor, .3); g.stroke(); });
+  g.restore();
+  if (trim) { g.beginPath(); trim.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.lineWidth = 2.6; g.strokeStyle = OUT; g.stroke(); g.lineWidth = 1.5; g.strokeStyle = '#e0b84a'; g.stroke(); }
+}
+function capaSide(g, J, P) {                                     // capa esvoaçante (voa pra trás quando ele ataca ou corre)
+  const T = J.T, k = -P.belt * .55 - P.hair * .3;
+  const pts = [T(33, -3), T(27, -15 - k * .3), T(14, -24 - k * .7), T(0, -29 - k), T(-14, -33 - k * 1.3), T(-29, -35 - k * 1.6), T(-31, -25 - k * 1.4),
+    T(-23, -23 - k * 1.1), T(-27, -14 - k), T(-17, -15 - k * .8), T(-15, -6 - k * .5), T(-4, -9), T(8, -6), T(26, -5), T(31, 4)];
+  capaLinhas(g, c => suave(c, pts), null, [[T(26, -8), T(10, -20 - k * .5), T(-12, -30 - k)], [T(18, -6), T(0, -16 - k * .4), T(-18, -24 - k * .9)]], [T(33, -3), T(31, 4)]);
+  const clasp = T(32, 0); gema(g, clasp[0], clasp[1], 2.4, '#ff3050');
+}
+function capaFrente(g, T, P) {
+  const w = P.belt * .25, pts = [T(34, -15), T(24, -23), T(-4, -29), T(-27, -24 - w), T(-31, -9), T(-27, 0 + w), T(-31, 9), T(-27, 24 + w), T(-4, 29), T(24, 23), T(34, 15), T(34, 0)];
+  capaLinhas(g, c => suave(c, pts), null, [[T(24, -16), T(0, -22), T(-24, -18)], [T(24, 16), T(0, 22), T(-24, 18)], [T(20, 0), T(-10, 0), T(-28, 0)]], [T(34, -15), T(34, 15)]);
 }
 
 /* Desenha o Akira inteiro virado pra direita; a origem (0,0) é o chão entre os pés */
@@ -2549,7 +2672,8 @@ function desenhar(g, P, est) {
   if (P.sx !== 1) { g.translate(J.H[0], 0); g.scale(P.sx, 1); g.translate(-J.H[0], 0); }
   if (P.rot) { g.translate(J.H[0], J.H[1]); g.rotate(-P.rot * D2R); g.translate(-J.H[0], -J.H[1]); }
   g.lineJoin = 'round'; g.lineCap = 'round';
-  if (P.glow > 0) aura(g, J, P);
+  { const gl = Math.max(P.glow, CONF.got && EST.aura ? .3 : 0); if (gl > 0) aura(g, J, Object.assign({}, P, { glow: gl })); }
+  if (CONF.got && EST.capa) capaSide(g, J, P);
   if (!P.bTop) braco(g, J.Sb, J.ba_, P.bU, P.bF);
   perna(g, J.bq, J.bk, J.ba, P, 0, P.bFt);
   tiraFaixa(g, J, P, faixa);
@@ -2558,6 +2682,7 @@ function desenhar(g, P, est) {
   if (P.bTop) braco(g, J.Sb, J.ba_, P.bU, P.bF);
   cabeca(g, J, P, faixa);
   braco(g, J.S, J.fa_, P.fU, P.fF);
+  if (CONF.got) ombreira(g, J.S, 8);
   g.restore();
 }
 
@@ -2632,6 +2757,20 @@ Object.assign(KEYS, {
   const a = AKIRA_ANIMATIONS[n]; AKIRA_ANIMATIONS[n + 'S'] = Object.assign({}, a, { frente: true });
 });
 
+// ATAQUES PRO NORTE (de costas pra tela): braço/perna que ataca vai pra longe da câmera (sobe e fica menor)
+function norteDe(p) {
+  const q = Object.assign({}, p, { costas: 1 });
+  ['l', 'r'].forEach(s => {
+    const hs = p[s + 'hs']; if (hs > 1.2) { q[s + 'hs'] = Math.max(.55, 1 / hs); q[s + 'e'] = [p[s + 'e'][0] + 2, -p[s + 'e'][1] - 6]; q[s + 'h'] = [p[s + 'h'][0], -p[s + 'h'][1] - 24]; }
+    const fs = p[s + 'fs']; if (fs > 1.2) { q[s + 'fs'] = .75; q[s + 'k'] = [p[s + 'k'][0] + 4, p[s + 'k'][1] - 6]; q[s + 'a'] = [p[s + 'a'][0] + 9, -18]; }
+  });
+  return q;
+}
+Object.keys(KEYS).filter(k => /S$/.test(k)).forEach(k => {
+  const n = k.slice(0, -1) + 'N';
+  KEYS[n] = KEYS[k].map(kp => ({ t: kp.t, e: kp.e, p: norteDe(kp.p) }));
+  AKIRA_ANIMATIONS[n] = Object.assign({}, AKIRA_ANIMATIONS[k], { frente: true, norte: true });
+});
 function desenharFrente(g, P, est) {
   EST = est; COR = est.cor; const faixa = est.faixa;
   const sg = [-1, 1];                                                  // lado esquerdo e direito da tela
@@ -2657,6 +2796,19 @@ function desenharFrente(g, P, est) {
     g.fillStyle = '#9a5a44'; for (let t = -2; t <= 2; t++) { g.beginPath(); g.arc(t * 2.5, -1.4, .85, 0, 7); g.fill(); }
     g.restore();
   };
+  if (CONF.got && EST.capa && !P.costas) capaFrente(g, T, P);
+  // braços: o que está esticado pra câmera (mão maior) por último
+  const bracos = [0, 1].sort((a, b) => hs[a] - hs[b]);
+  const braco = i => {
+    const s = sg[i], S0 = T(30, s * 12), e = [S0[0] + s * elb[i][0], S0[1] + elb[i][1]], h = [e[0] + s * han[i][0], e[1] + han[i][1]], r = hs[i];
+    membro(g, e[0], e[1], h[0], h[1], 9 * Math.min(1.5, r), COR.pele, COR.peleS);
+    if (CONF.got) bracadeira(g, e, h);
+    membro(g, S0[0], S0[1], e[0], e[1], 13.5, COR.gi, COR.giS);
+    g.save(); g.translate(h[0], h[1]); g.scale(r, r);
+    forma(g, c => c.arc(0, 0, 6.4, 0, 7), COR.pele, COR.peleS, 2.2, 2.8 / r);
+    g.strokeStyle = '#9a5a44'; g.lineWidth = 1.2 / Math.min(r, 1.4); for (const k of [-3.4, -1.1, 1.2, 3.5]) { g.beginPath(); g.moveTo(k, -4.4); g.lineTo(k, -1.2); g.stroke(); }
+    g.restore();
+  };
   pernas.forEach(perna);
   // tronco de frente
   // desenha o tronco como polígono suave simétrico
@@ -2664,7 +2816,9 @@ function desenharFrente(g, P, est) {
   forma(g, tr, COR.gi, COR.giS, 4, 3.2);
   g.save(); g.beginPath(); tr(g); g.clip(); g.lineCap = 'round';
   const Ln = (arr, w, c) => { g.beginPath(); arr.forEach((p, i) => { const t = T(p[0], p[1]); i ? g.lineTo(t[0], t[1]) : g.moveTo(t[0], t[1]); }); g.lineWidth = w; g.strokeStyle = c; g.stroke(); };
+  if (P.costas) Ln([[35, 0], [8, 0]], 1.5, COR.giSS); else {
   Ln([[35, -6], [20, 0], [10, 7]], 4.2, COR.giS); Ln([[35, 6], [20, 0], [10, -7]], 3.6, '#e9eefb'); Ln([[35, -6], [20, 0], [10, 7]], 1.5, OUT); Ln([[35, 6], [21, 0], [11, -7]], 1.2, COR.giSS);
+  }
   Ln([[16, -10], [22, -8]], 1.2, COR.giSS); Ln([[16, 10], [22, 8]], 1.2, COR.giSS);
   g.restore();
   // faixa com nó no meio e pontas
@@ -2673,20 +2827,13 @@ function desenharFrente(g, P, est) {
   const kn = T(7, 0);
   [-1, 1].forEach((s, i) => { const a = (s * 12 + P.belt * s * .5) * D2R; const x1 = kn[0] + Math.sin(a) * 9, y1 = kn[1] + 3 + Math.cos(a) * 9; traco(g, kn[0], kn[1], x1, y1, 6.4, OUT); traco(g, kn[0], kn[1], x1, y1, 4.2, i ? esc(faixa, .8) : faixa); });
   forma(g, c => { c.rect(kn[0] - 3.8, kn[1] - 3.8, 7.6, 7.6); }, faixa, esc(faixa, .7), 1.6, 2.4);
+  if (CONF.got && !P.costas) gema(g, kn[0], kn[1], 2.4, '#ff3050');
+  if (CONF.got && EST.capa && P.costas) capaFrente(g, T, P);
+  if (P.costas) pernas.forEach(i => { if (fs[i] < 1) perna(i); });     // de costas: perna que chuta pra longe aparece de lado, por cima da capa
   // cabeça
   cabecaF(g, T(33, 0), P, l);
-  // braços: o que está esticado pra câmera (mão maior) por último
-  const bracos = [0, 1].sort((a, b) => hs[a] - hs[b]);
-  const braco = i => {
-    const s = sg[i], S0 = T(30, s * 12), e = [S0[0] + s * elb[i][0], S0[1] + elb[i][1]], h = [e[0] + s * han[i][0], e[1] + han[i][1]], r = hs[i];
-    membro(g, e[0], e[1], h[0], h[1], 9 * Math.min(1.5, r), COR.pele, COR.peleS);
-    membro(g, S0[0], S0[1], e[0], e[1], 13.5, COR.gi, COR.giS);
-    g.save(); g.translate(h[0], h[1]); g.scale(r, r);
-    forma(g, c => c.arc(0, 0, 6.4, 0, 7), COR.pele, COR.peleS, 2.2, 2.8 / r);
-    g.strokeStyle = '#9a5a44'; g.lineWidth = 1.2 / Math.min(r, 1.4); for (const k of [-3.4, -1.1, 1.2, 3.5]) { g.beginPath(); g.moveTo(k, -4.4); g.lineTo(k, -1.2); g.stroke(); }
-    g.restore();
-  };
   bracos.forEach(braco);
+  if (CONF.got) [-1, 1].forEach(sd => ombreira(g, T(31, sd * 13), 7.5));
   g.restore();
 }
 function cabecaF(g, C, P, lean) {
@@ -2711,6 +2858,13 @@ function cabecaF(g, C, P, lean) {
   traco(g, 0, 8, 0, 18, 8, OUT); traco(g, 0, 8, 0, 18, 5.4, COR.peleS);                         // pescoço
   [-1, 1].forEach(s => forma(g, c => c.ellipse(s * 12.4, 1, 2.8, 4.2, 0, 0, 7), COR.pele, COR.peleS, 1, 2));    // orelhas
   forma(g, c => { c.moveTo(-12, -6); c.bezierCurveTo(-13, -16, -6, -18.5, 0, -18.5); c.bezierCurveTo(6, -18.5, 13, -16, 12, -6); c.bezierCurveTo(12.5, 4, 8, 13, 0, 14.8); c.bezierCurveTo(-8, 13, -12.5, 4, -12, -6); c.closePath(); }, COR.pele, COR.peleS, 3, 3);
+  if (P.costas) {                                                      // de costas: cabelo cobre a cabeça toda
+    if (H !== 'careca') {
+      forma(g, c => { c.moveTo(-12, -6); c.bezierCurveTo(-13, -16, -6, -18.5, 0, -18.5); c.bezierCurveTo(6, -18.5, 13, -16, 12, -6); c.bezierCurveTo(12.5, 4, 8, 13, 0, 14.8); c.bezierCurveTo(-8, 13, -12.5, 4, -12, -6); c.closePath(); }, COR.cab, COR.cabS, 3, 2.8);
+      g.beginPath(); g.moveTo(-9, -12); g.quadraticCurveTo(0, -18, 9, -12); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+      g.lineWidth = 1.2; g.strokeStyle = COR.cabL; for (const [a, b, c2, d2] of [[-6, -6, -7, 9], [0, -8, 0, 11], [6, -6, 7, 9]]) { g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
+    }
+  } else {
   // olhos (dois, de frente)
   const olho = (ox, oy, s) => {
     const eye = P.eye, ang = eye === 'angry' ? 1 : 0;
@@ -2725,6 +2879,7 @@ function cabecaF(g, C, P, lean) {
       g.beginPath(); g.arc(1.4, -1.9, 1.4, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(-1.2, 2.3, .8, 0, 7); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
       g.beginPath(); g.moveTo(-5.4, -.2 + ang); g.quadraticCurveTo(0, -6.8 + ang * 1.5, 5.6, -1.6); g.lineWidth = 2.4; g.strokeStyle = OUT; g.stroke();
     }
+    if (CONF.got && (eye === 'open' || eye === 'angry')) glowOlho(g, 0, .4, 7);
     g.restore();
   };
   olho(-5.2, 1.5, -1); olho(5.2, 1.5, 1);
@@ -2733,8 +2888,9 @@ function cabecaF(g, C, P, lean) {
   if (m === 'shout' || m === 'open') { g.beginPath(); g.ellipse(0, 10.2, m === 'shout' ? 3.6 : 2.4, m === 'shout' ? 3.4 : 2.4, 0, 0, 7); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = OUT; g.stroke(); g.beginPath(); g.ellipse(0, 11.4, 2, 1.1, 0, 0, 7); g.fillStyle = '#e8737f'; g.fill(); }
   else if (m === 'smile') { g.beginPath(); g.moveTo(-4, 9); g.quadraticCurveTo(0, 14.5, 4, 9); g.closePath(); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.4; g.strokeStyle = OUT; g.stroke(); }
   else { g.beginPath(); g.moveTo(-3, 10.4); g.quadraticCurveTo(0, 11.8, 3, 10.4); g.lineWidth = 1.5; g.strokeStyle = '#8a4a3c'; g.stroke(); }
+  }
   // franja
-  if (H !== 'careca') {
+  if (H !== 'careca' && !P.costas) {
     const fr = c => {
       c.moveTo(-13.5, -4); c.bezierCurveTo(-15, -20, 15, -20, 13.5, -4); c.quadraticCurveTo(12, -7, 10.5, -9);
       const t = [bal([9, -9], [11, -1.6], 1), bal([3.5, -9], [4.5, -2], 1), bal([-3, -9], [-4, -2], 1), bal([-9, -9], [-11, -1.6], 1)];
@@ -2759,7 +2915,7 @@ function novoCanvas(w, h) { const c = document.createElement('canvas'); c.width 
 // Devolve o quadro pronto (canvas) em "sc" pixels por unidade de desenho
 function quadro(nome, i, sc, est, costas) {
   const usaExt = externo && est.externo && externo.anims[nome];
-  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + est.id + '|' + (costas ? 'B' : 'F') + '|' + (usaExt ? 'E' : 'P') + (CONF.pixel ? 'x' : '');
+  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + est.id + '|' + (costas ? 'B' : 'F') + '|' + (usaExt ? 'E' : 'P') + (CONF.pixel ? 'x' : '') + (CONF.got ? 'g' : '');
   if (cacheQ[key]) return cacheQ[key];
   const c = novoCanvas(Math.ceil(AK.UW * sc), Math.ceil(AK.UH * sc)), g = c.getContext('2d');
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
@@ -2769,7 +2925,7 @@ function quadro(nome, i, sc, est, costas) {
     g.drawImage(externo.img, ex, ey, fw, fh, 0, 0, c.width, c.height);
   } else {
     g.scale(sc, sc); g.translate(AK.OX, AK.OY);
-    const P = posePorQuadro(nome, i); P.costas = costas ? 1 : 0;
+    const P = posePorQuadro(nome, i); P.costas = (costas || AKIRA_ANIMATIONS[nome].norte) ? 1 : 0;
     if (est.olho && P.eye === 'open') { P.eye = est.olho; P.brow = Math.max(P.brow, 1); }
     if (est.boca && P.mouth === 'closed') P.mouth = est.boca;
     (AKIRA_ANIMATIONS[nome].frente ? desenharFrente : desenhar)(g, P, est);
@@ -3514,13 +3670,13 @@ function desenharObj(o, sx, sy) {
     case 'jogador': {
       const [an, fr] = animJogador();
       desenharRastros();
-      desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0, null, jog.costas); break;
+      desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0 ? 'r' : false, null, jog.costas); break;
     }
     case 'npc': {
       virarObj(o);
       desenharAkira(sx, sy, 'relax', Math.floor(tempo * 3 + o.x) % 4, o.face, 0, 1, false, estiloPal(o.pal), o.costas);
       const ey = Math.round(sy - 48 * (o.pal.esc || 1));
-      ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+      ctx.font = GOT.on ? 'bold 8px Cinzel, serif' : 'bold 7px monospace'; ctx.textAlign = 'center';
       const w = ctx.measureText(o.nome).width + 6;
       ctx.fillStyle = 'rgba(15,20,35,.75)'; ctx.fillRect(Math.round(sx - w / 2), ey, Math.round(w), 9);
       ctx.fillStyle = '#fff'; ctx.fillText(o.nome, Math.round(sx), ey + 7);
@@ -3557,12 +3713,89 @@ function desenharObj(o, sx, sy) {
   }
 }
 
+/* ---------- Atmosfera gótica: fundo com lua e arcos, luzes de tochas, névoa, sombras dinâmicas ---------- */
+let LUZES = [];
+const LCV = document.createElement('canvas'), LCX = LCV.getContext('2d');
+function luzesDoMapa() {                                               // fontes de luz: lanternas/tochas do mapa
+  const L = [];
+  for (const o of mapa.objs) {
+    const l = o.spr && o.spr.luz; if (!l || typeof l !== 'object') continue;
+    const [sx, sy] = iso(o.x, o.y); L.push({ x: sx + l.x, y: sy + l.y, r: l.r, c: l.c, k: o.x * 3 + o.y });
+  }
+  return L;
+}
+function fundoGotico() {                                               // céu roxo, lua cheia e arcos ogivais em camadas (parallax)
+  const w = Math.ceil(W * SC), h = Math.ceil(H * SC);
+  const ceu = document.createElement('canvas'); ceu.width = w; ceu.height = h; let g = ceu.getContext('2d'); g.scale(SC, SC);
+  let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#070a22'); gr.addColorStop(.55, '#25143f'); gr.addColorStop(1, '#4a1a44'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  const rnd = mulberry32(7); g.fillStyle = '#fff';
+  for (let k = 0; k < 70; k++) { g.globalAlpha = .25 + rnd() * .6; g.fillRect(rnd() * W, rnd() * H * .6, rnd() < .1 ? 1.5 : .8, rnd() < .1 ? 1.5 : .8); } g.globalAlpha = 1;
+  const mx = W * .72, my = H * .24, mr = Math.min(W, H) * .15;
+  gr = g.createRadialGradient(mx, my, mr * .8, mx, my, mr * 3.2); gr.addColorStop(0, 'rgba(255,90,100,.35)'); gr.addColorStop(.35, 'rgba(255,200,170,.12)'); gr.addColorStop(1, 'rgba(255,200,170,0)'); g.fillStyle = gr; g.fillRect(mx - mr * 3.4, my - mr * 3.4, mr * 6.8, mr * 6.8);
+  gr = g.createRadialGradient(mx - mr * .3, my - mr * .3, mr * .1, mx, my, mr); gr.addColorStop(0, '#fffbe8'); gr.addColorStop(.7, '#f4e3b8'); gr.addColorStop(1, '#d8b98a');
+  g.beginPath(); g.arc(mx, my, mr, 0, 6.3); g.fillStyle = gr; g.fill(); g.lineWidth = 1; g.strokeStyle = 'rgba(255,120,120,.6)'; g.stroke();
+  [[-.35, -.2, .2], [.25, .15, .26], [-.1, .4, .14], [.4, -.3, .12]].forEach(([a, b, r]) => { g.beginPath(); g.arc(mx + a * mr, my + b * mr, r * mr, 0, 6.3); g.fillStyle = 'rgba(150,120,100,.28)'; g.fill(); });
+  // muralha com arcos ogivais e vitrais quebrados (uma faixa que se repete)
+  const esp = 110, bw = esp * Math.ceil(W / esp + 2), bh = Math.ceil(H * .62);
+  const fx = document.createElement('canvas'); fx.width = Math.ceil(bw * SC); fx.height = Math.ceil(bh * SC); g = fx.getContext('2d'); g.scale(SC, SC);
+  g.fillStyle = '#121428'; g.fillRect(0, bh * .15, bw, bh);
+  for (let x = 0; x < bw; x += esp) {
+    const cx = x + esp / 2, topo = bh * .22, base = bh * .85, ww = 34;
+    g.beginPath(); g.moveTo(cx - ww, base); g.lineTo(cx - ww, topo + 26); g.quadraticCurveTo(cx - ww, topo + 6, cx, topo - 14); g.quadraticCurveTo(cx + ww, topo + 6, cx + ww, topo + 26); g.lineTo(cx + ww, base); g.closePath();
+    gr = g.createLinearGradient(0, topo, 0, base); gr.addColorStop(0, '#3a2a6a'); gr.addColorStop(1, '#14102e'); g.fillStyle = gr; g.fill(); g.lineWidth = 3; g.strokeStyle = '#2a2d48'; g.stroke();
+    g.save(); g.clip();                                                // vitral: cacos coloridos, alguns faltando
+    const cores = ['#d8314a', '#2f6fe0', '#e8b030', '#7a3ad0', '#2fb39a'];
+    for (let k = 0; k < 14; k++) { if (rnd() < .35) continue; const a = cx - ww + (k % 4) * ww / 2, b = topo - 10 + Math.floor(k / 4) * 26; g.beginPath(); g.moveTo(a + rnd() * 6, b); g.lineTo(a + ww / 2, b + rnd() * 5); g.lineTo(a + ww / 2 - rnd() * 6, b + 26); g.lineTo(a, b + 24); g.closePath(); g.fillStyle = cores[k % 5]; g.globalAlpha = .55; g.fill(); }
+    g.globalAlpha = 1; g.lineWidth = 1.6; g.strokeStyle = '#0b0c1c'; g.beginPath(); g.moveTo(cx, topo - 14); g.lineTo(cx, base); g.moveTo(cx - ww, topo + 40); g.lineTo(cx + ww, topo + 40); g.stroke();
+    g.restore();
+    g.fillStyle = '#1b1e38'; g.fillRect(x - 6, bh * .15, 12, bh); g.fillStyle = '#0d0e1e'; g.fillRect(x - 6, bh * .15, 4, bh);   // pilar entre os arcos
+  }
+  return { ceu, muralha: fx, esp, bh };
+}
+function desenharFundoGotico(g) {
+  if (!fundoGot) fundoGot = fundoGotico();
+  g.setTransform(SC, 0, 0, SC, 0, 0);
+  g.drawImage(fundoGot.ceu, 0, 0, W, H);
+  const f = fundoGot.muralha, fw = f.width / SC, off = -((camera.x * .22) % fw + fw) % fw, y = H - f.height / SC + 20 - camera.y * .03;
+  for (let x = off - fw; x < W; x += fw) g.drawImage(f, Math.round(x), Math.round(y), fw, f.height / SC);
+  g.fillStyle = 'rgba(8,6,24,.45)'; g.fillRect(0, 0, W, H);          // escurece o fundo pra o cenário se destacar
+}
+function luzesGoticas(g, tx, ty) {
+  if (LCV.width !== canvas.width || LCV.height !== canvas.height) { LCV.width = canvas.width; LCV.height = canvas.height; }
+  LCX.setTransform(1, 0, 0, 1, 0, 0); LCX.globalCompositeOperation = 'source-over'; LCX.clearRect(0, 0, LCV.width, LCV.height);
+  LCX.fillStyle = mapa.interior ? 'rgba(8,5,26,.6)' : 'rgba(8,12,44,.46)'; LCX.fillRect(0, 0, LCV.width, LCV.height);
+  LCX.setTransform(SC, 0, 0, SC, tx * SC, ty * SC); LCX.globalCompositeOperation = 'destination-out';
+  const furo = (x, y, r, a) => { const gr = LCX.createRadialGradient(x, y, r * .08, x, y, r); gr.addColorStop(0, 'rgba(0,0,0,' + a + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); LCX.fillStyle = gr; LCX.fillRect(x - r, y - r, r * 2, r * 2); };
+  for (const l of LUZES) furo(l.x, l.y, l.r * 3.4 * (.92 + .08 * Math.sin(tempo * 9 + l.k)), .95);
+  const [px, py] = iso(jog.x, jog.y); furo(px, py - 14, 78, .85);
+  g.save(); g.setTransform(SC, 0, 0, SC, 0, 0); g.drawImage(LCV, 0, 0, W, H); g.restore();
+  g.save(); g.globalCompositeOperation = 'lighter';                    // brilho colorido (laranja de tocha, azul de lua)
+  for (const l of LUZES) Cen.brilho(g, l.x, l.y, l.r * 2.6, l.c, .3 * (.85 + .15 * Math.sin(tempo * 9 + l.k * 2)));
+  Cen.brilho(g, px, py - 14, 60, '#8fa8ff', .1);
+  g.restore();
+}
+function nevoaGotica(g) {                                              // névoa rasteira e poeira flutuando
+  g.save(); g.setTransform(SC, 0, 0, SC, 0, 0);
+  for (let k = 0; k < 5; k++) {
+    const x = ((tempo * (5 + k * 2.4) + k * 190) % (W + 360)) - 180, y = H * (.5 + .1 * k) + Math.sin(tempo * .35 + k) * 14, r = 130 + k * 20;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(150,160,215,.11)'); gr.addColorStop(1, 'rgba(150,160,215,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  g.fillStyle = '#dfe6ff';
+  for (let k = 0; k < 34; k++) {
+    const x = (k * 97 + tempo * (3 + k % 5)) % W, y = (k * 53 + Math.sin(tempo * .7 + k) * 12 + tempo * (1.5 + k % 3)) % H;
+    g.globalAlpha = .18 + .28 * (.5 + .5 * Math.sin(tempo * 1.6 + k)); g.beginPath(); g.arc(x, y, .6 + (k % 3) * .4, 0, 6.3); g.fill();
+  }
+  g.globalAlpha = 1; g.restore();
+}
 function renderizar(dt) {
   const g = ctx;
   g.setTransform(SC, 0, 0, SC, 0, 0);
-  g.fillStyle = mapa.interior ? '#1a1420' : '#16241a'; g.fillRect(0, 0, W, H);
+  if (GOT.on) desenharFundoGotico(g); else { g.fillStyle = mapa.interior ? '#1a1420' : '#16241a'; g.fillRect(0, 0, W, H); }
   const shx = shake > 0 ? Math.round((Math.random() - .5) * shake) : 0, shy = shake > 0 ? Math.round((Math.random() - .5) * shake) : 0;
-  g.setTransform(SC, 0, 0, SC, (Math.round(W / 2 - camera.x) + shx) * SC, (Math.round(H / 2 - camera.y) + shy) * SC);
+  const camTx = Math.round(W / 2 - camera.x) + shx, camTy = Math.round(H / 2 - camera.y) + shy;
+  g.setTransform(SC, 0, 0, SC, camTx * SC, camTy * SC);
+  if (GOT.on) LUZES = luzesDoMapa();
   const vx0 = camera.x - W / 2 - 70, vx1 = camera.x + W / 2 + 70, vy0 = camera.y - H / 2 - 130, vy1 = camera.y + H / 2 + 90;
 
   // Camada 1: chão (imagem pronta) + água animada
@@ -3571,8 +3804,8 @@ function renderizar(dt) {
     const x = (i - j) * 16 - 16, y = (i + j) * 8;
     if (x > vx0 && x < vx1 && y > vy0 && y < vy1) Cen.aguaAnim(g, i, j, x, y, tempo);
   }
-  if (gradeNeon && mapa.grade) g.drawImage(mapa.grade, -mapa.ox, -mapa.oy, mapa.grade.width / SC, mapa.grade.height / SC);
-  if (gradeNeon) {                                                     // losango neon pulsando no tile onde o Akira está
+  if (gradeNeon && PIX.on && mapa.grade) g.drawImage(mapa.grade, -mapa.ox, -mapa.oy, mapa.grade.width / SC, mapa.grade.height / SC);
+  if (gradeNeon && PIX.on) {                                           // losango neon pulsando no tile onde o Akira está
     const ti = Math.floor(jog.x), tj = Math.floor(jog.y), pts = [iso(ti, tj), iso(ti + 1, tj), iso(ti + 1, tj + 1), iso(ti, tj + 1)];
     g.globalAlpha = .55 + .3 * Math.sin(tempo * 6);
     if (PIX.on) pts.forEach((p, k) => { const q = pts[(k + 1) % 4]; linha(g, p[0], p[1], q[0], q[1], 1, '#7ff3ff'); });
@@ -3594,6 +3827,7 @@ function renderizar(dt) {
     if (sx < vx0 || sx > vx1 || sy < vy0 || sy > vy1 + 120) continue;
     if (o.tipo === 'casa') spr(o.spr, sx, sy); else desenharObj(o, sx, sy);
   }
+  if (GOT.on && !mapa.escuro) luzesGoticas(g, camTx, camTy);          // luz de tochas por cima de tudo (menos dos textos)
   if (mapa.escuro) {                                                   // cavernas: escuro, com brilho dos cristais
     g.fillStyle = 'rgba(10,8,34,.42)'; g.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0 + 120);
     g.globalCompositeOperation = 'lighter';
@@ -3642,8 +3876,9 @@ function renderizar(dt) {
   g.setTransform(SC, 0, 0, SC, 0, 0);
   if (!mapa.interior) {                                                // partículas do ambiente (folhas, pétalas, vaga-lumes...)
     const am = mapa.amb || {};
-    if (!mapa.escuro) { Cen.nuvens(g, W, H, tempo); Cen.luzSolar(g, W, H, tempo); }
-    folhas.forEach((f, i) => {
+    if (!mapa.escuro && !GOT.on) { Cen.nuvens(g, W, H, tempo); Cen.luzSolar(g, W, H, tempo); }
+    if (GOT.on) nevoaGotica(g);
+    else folhas.forEach((f, i) => {
       f.x += (f.vx * (am.kx != null ? am.kx : 1) + Math.sin(tempo * 2 + i) * 6) * dt; f.y += f.vy * dt * (am.ky != null ? am.ky : 1);
       if (f.x > W + 5) f.x = -5; if (f.x < -5) f.x = W + 5;
       if (f.y > H + 5) f.y = -5; if (f.y < -5) f.y = H + 5;
@@ -3652,6 +3887,7 @@ function renderizar(dt) {
       else Cen.folhaFx(g, f.x, f.y, tempo * (1.2 + (i % 3) * .5) + i, cor, 1.5 + (i % 3) * .4);
     });
   }
+  if (GOT.on && mapa.interior) nevoaGotica(g);
   g.fillStyle = vinheta; g.fillRect(0, 0, W, H);
   if (fade) {
     const a = fade.f === 0 ? fade.t / .25 : 1 - fade.t / .25;
