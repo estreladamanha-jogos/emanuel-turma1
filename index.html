@@ -222,18 +222,18 @@ const CONEXOES = [
 
 // Paletas dos personagens (o desenho é o mesmo, só mudam as cores)
 // Bandidos do dojo: testeira vermelha, coque, quimono cinza sem manga e munhequeiras (como na folha de sprites)
-const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true };
-const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true };
-const PAL_MESTRE = { gi: '#4a2030', som: '#341622', pele: '#d98e60', cab: '#e8e8e8', testa: '#e0b020', faixa: '#e0b020', braco: '#d98e60', punho: '#e0b020', coque: true };
-const PAL_RITA = { gi: '#c0486a', som: '#8f3350', pele: '#7a4a32', cab: '#14100e', testa: null, faixa: '#e8c860', trancas: true };
-const PAL_MONGE = { gi: '#d98a2a', som: '#a8671c', pele: '#d9a37c', cab: '#d9a37c', testa: null, faixa: '#7a4a1a' };
-const PAL_REN = { gi: '#2f7a4a', som: '#235c37', pele: '#e0b08a', cab: '#3a2a1a', testa: null, faixa: '#222' };
-const PAL_KENJI = { gi: '#3b4a6b', som: '#2b3650', pele: '#d9a37c', cab: '#dcdcdc', testa: null, faixa: '#222' };
-const PAL_DAVI = { gi: '#f6f6f2', som: '#d3d7de', pele: '#f1c9a5', cab: '#f1c9a5', testa: null, faixa: '#f2f2f2' };
-const PAL_PIETRA = { gi: '#a13a4a', som: '#7d2c39', pele: '#f1c9a5', cab: '#d9582b', testa: null, faixa: '#222' };
-const PAL_HANA = { gi: '#7b5aa6', som: '#5d4380', pele: '#e0b08a', cab: '#3a2a3a', testa: null, faixa: '#e8c860' };
-const PAL_MEI = { gi: '#d96b8a', som: '#b04e6b', pele: '#e0b08a', cab: '#2a1a1a', testa: null, faixa: '#f4e8c0' };
-const PAL_JUN = { gi: '#6b7a3a', som: '#4f5c2a', pele: '#d9a37c', cab: '#2a1a1a', testa: null, faixa: '#7a5a2a' };
+const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true, cabelo: 'coque', iris: '#9a2a1a', olho: 'angry' };
+const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true, cabelo: 'coque', iris: '#2a4a9a', olho: 'angry', esc: 1.04 };
+const PAL_MESTRE = { gi: '#4a2030', som: '#341622', pele: '#d98e60', cab: '#e8e8e8', testa: '#e0b020', faixa: '#e0b020', braco: '#d98e60', punho: '#e0b020', coque: true, cabelo: 'coque', iris: '#8a6a1a', olho: 'angry', esc: 1.14 };
+const PAL_RITA = { gi: '#c0486a', som: '#8f3350', pele: '#7a4a32', cab: '#14100e', testa: null, faixa: '#e8c860', trancas: true, cabelo: 'tranca', iris: '#3a2a1a', boca: 'smile' };
+const PAL_MONGE = { gi: '#d98a2a', som: '#a8671c', pele: '#d9a37c', cab: '#d9a37c', testa: null, faixa: '#7a4a1a', cabelo: 'careca', iris: '#5a3a1a', boca: 'smile', esc: .96 };
+const PAL_REN = { gi: '#2f7a4a', som: '#235c37', pele: '#e0b08a', cab: '#3a2a1a', testa: null, faixa: '#222', cabelo: 'curto', iris: '#2a6a3a', boca: 'smile' };
+const PAL_KENJI = { gi: '#3b4a6b', som: '#2b3650', pele: '#d9a37c', cab: '#dcdcdc', testa: null, faixa: '#222', cabelo: 'curto', iris: '#4a5a7a' };
+const PAL_DAVI = { gi: '#f6f6f2', som: '#d3d7de', pele: '#f1c9a5', cab: '#8a5a2a', testa: null, faixa: '#f2f2f2', cabelo: 'espeto', iris: '#6a4a2a', boca: 'smile', esc: .86 };
+const PAL_PIETRA = { gi: '#a13a4a', som: '#7d2c39', pele: '#f1c9a5', cab: '#d9582b', testa: null, faixa: '#222', cabelo: 'rabo', iris: '#2a6a8a', boca: 'smile', esc: .86 };
+const PAL_HANA = { gi: '#7b5aa6', som: '#5d4380', pele: '#e0b08a', cab: '#3a2a3a', testa: null, faixa: '#e8c860', cabelo: 'longo', iris: '#6a3a8a', boca: 'smile' };
+const PAL_MEI = { gi: '#d96b8a', som: '#b04e6b', pele: '#e0b08a', cab: '#2a1a1a', testa: null, faixa: '#f4e8c0', cabelo: 'coque', iris: '#4a2a1a', boca: 'smile' };
+const PAL_JUN = { gi: '#6b7a3a', som: '#4f5c2a', pele: '#d9a37c', cab: '#2a1a1a', testa: null, faixa: '#7a5a2a', cabelo: 'curto', iris: '#4a3a1a', boca: 'smile' };
 
 const TIPOS_INIM = {
   bandido:  { nome: 'Bandido do Dojo',   hp: 34,  dano: 7,  vel: 1.7, xp: 18, pal: PAL_INIM },
@@ -1951,24 +1951,33 @@ function animJogador() {
       return ['idle', Math.floor(tempo * 8) % 6];
   }
 }
-function animInimigo(o) {
-  if (!o.vivo) return ['caido', Math.min(7, Math.floor((.5 - o.t) / .5 * 8))];
-  if (o.stun > 0) return ['hit', Math.max(0, Math.min(7, Math.floor((.45 - o.stun) / .45 * 8)))];
-  if (o.est === 'prep') return ['soco', Math.min(2, Math.floor((.5 - o.t) / .5 * 3))];                 // levanta o punho (avisa o golpe)
-  if (o.est === 'golpe') return ['soco', 3 + Math.min(2, Math.floor((.18 - o.t) / .18 * 3))];
-  if (o.est === 'rec') return ['soco', o.t > .35 ? 6 : 7];
-  if (o.anda) return ['walk', Math.floor(o.fase / (Math.PI * 2) * 8) % 8];
-  return ['idle', Math.floor(tempo * 5 + o.x) % 4];
+function virarObj(o) { const v = DIRV[o.dir][0]; if (v) o.face = v > 0 ? 1 : -1; else if (!o.face) o.face = 1; }   // olha pra esquerda/direita da tela
+function animInimigo(o) {                                          // qual animação anime o inimigo usa agora
+  if (!o.vivo) return ['ko', Math.max(0, Math.min(5, Math.floor((.5 - o.t) / .5 * 6)))];
+  if (o.stun > 0) return ['hit', Math.max(0, Math.min(3, Math.floor((.45 - o.stun) / .45 * 4)))];
+  if (o.est === 'prep') return ['punch', (.5 - o.t) > .25 ? 1 : 0];                    // puxa o braço pra trás (avisa o golpe)
+  if (o.est === 'golpe') return ['punch', 2 + Math.min(1, Math.floor((.18 - o.t) / .18 * 2))];
+  if (o.est === 'rec') return ['punch', o.t > .35 ? 4 : 5];
+  if (o.anda) return ['walk', Math.floor(o.fase / 6.283 * 8) % 8];
+  return ['idle', Math.floor(tempo * 8 + o.x * 3) % 6];
 }
 // Akira desenhado em resolução cheia (sprite anime 2D), com sombra suave no chão
 const SCR_AK = document.createElement('canvas');
-function desenharAkira(sx, sy, an, f, face, z, alfa, branco) {
-  const k = Akira.AK.K, sc = k * SC, q = Akira.quadro(an, f, sc, FAIXAS[estado.faixa].cor);
+const ESTILOS = new WeakMap(), ESTILOS_FAIXA = {}; let idEstilo = 0;
+function estiloPal(p) {                                                  // paleta do inimigo/NPC -> estilo anime (cores + cabelo)
+  let e = ESTILOS.get(p); if (e) return e;
+  e = Akira.fazEstilo({ id: 'pal' + (idEstilo++), gi: p.gi, pele: p.pele, cab: p.cab, faixa: p.faixa, cabelo: p.cabelo, banda: p.testa, iris: p.iris, olho: p.olho, boca: p.boca, esc: p.esc });
+  ESTILOS.set(p, e); return e;
+}
+const estiloAkira = () => { const c = FAIXAS[estado.faixa].cor; return ESTILOS_FAIXA[c] || (ESTILOS_FAIXA[c] = Akira.ESTILO_AKIRA(c)); };
+function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est) {
+  est = est || estiloAkira();
+  const k = Akira.AK.K * est.esc, sc = k * SC, q = Akira.quadro(an, f, sc, est);
   sx = Math.round(sx); sy = Math.round(sy);
   const g = ctx;
   if (alfa == null || alfa >= 1) {                                       // sombra suave (fica no chão mesmo pulando)
     g.save(); g.translate(sx, sy); g.scale(1, .42);
-    const r = 14 * (1 - Math.min(.5, z / 60)), gr = g.createRadialGradient(0, 0, 1, 0, 0, r);
+    const r = 14 * est.esc * (1 - Math.min(.5, z / 60)), gr = g.createRadialGradient(0, 0, 1, 0, 0, r);
     gr.addColorStop(0, 'rgba(0,0,0,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = gr; g.fillRect(-r, -r, r * 2, r * 2); g.restore();
   }
@@ -2020,7 +2029,7 @@ function desenharFx(g) {
 
 
 /* =====================================================================
-   13b. AKIRA ANIME 2D (motor de desenho vetorial + sprite sheet em canvas)
+   13b. PERSONAGENS ANIME 2D (Akira, inimigos e NPCs: motor vetorial + sprite sheet em canvas)
    ===================================================================== */
 const Akira = (() => {
 /* =====================================================================
@@ -2033,6 +2042,7 @@ const AK = { UW: 200, UH: 190, OX: 100, OY: 165, K: .34 };      // quadro (unida
 // Cada animação: quantidade de quadros, fps, se repete. imp/seg = trecho do golpe (fração) onde o soco/chute acerta
 const AKIRA_ANIMATIONS = {
   idle:       { frames: 6,  fps: 8,  loop: true },
+  relax:      { frames: 4,  fps: 4,  loop: true },
   walk:       { frames: 8,  fps: 12, loop: true },
   run:        { frames: 8,  fps: 16, loop: true },
   jump:       { frames: 6,  fps: 12, loop: false },
@@ -2066,6 +2076,10 @@ const kf = (t, o, e) => ({ t, p: pz(o), e: e || 'smooth' });
 /* Quadros-chave das animações de golpe (cada um muda braços, pernas, tronco, cabelo e roupa) */
 const KEYS = {
   idle: [kf(0, { belt: 3 }), kf(.5, { fT: 33, fS: 14, bT: -27, bS: -22, lean: 11, fU: 42, fF: 154, bU: 18, hair: 5, belt: -4, head: 2 }), kf(1, { belt: 3 })],
+  relax: [
+    kf(0,  { lean: 2, fT: 5, fS: 1, bT: -5, bS: -2, fFt: 86, bFt: 84, fU: 6, fF: 20, bU: 2, bF: 14, belt: 2, hair: 1 }),
+    kf(.5, { lean: 3, head: 2, fT: 5, fS: 1, bT: -5, bS: -2, fFt: 86, bFt: 84, fU: 8, fF: 24, bU: 3, bF: 16, belt: -2, hair: 3 }),
+    kf(1,  { lean: 2, fT: 5, fS: 1, bT: -5, bS: -2, fFt: 86, bFt: 84, fU: 6, fF: 20, bU: 2, bF: 14, belt: 2, hair: 1 })],
   jump: [
     kf(0,   { fT: 55, fS: 40, bT: -45, bS: -50, lean: 24, fU: -30, fF: -40, bU: -40, bF: -50, hair: -4, mouth: 'closed' }),
     kf(.2,  { lift: 8, fT: 10, fS: 5, bT: -8, bS: -6, lean: 4, fU: 150, fF: 170, bU: 140, bF: 165, hair: 12, brow: 1, mouth: 'open', fFt: 150, bFt: 150 }),
@@ -2220,9 +2234,25 @@ function juntas(P) {
 
 /* ---------- 3. DESENHO ---------- */
 const OUT = '#1a1230';
-const COR = { pele: '#f6c19a', peleS: '#d98d6c', gi: '#fdfbf6', giS: '#aeb8d8', giSS: '#7e8cb8', cab: '#222850', cabS: '#10142e', cabL: '#3f58b0', cabL2: '#8fa8f0' };
+let COR = { pele: '#f6c19a', peleS: '#d98d6c', gi: '#fdfbf6', giS: '#aeb8d8', giSS: '#7e8cb8', cab: '#222850', cabS: '#10142e', cabL: '#3f58b0', cabL2: '#8fa8f0' };
 const LUZ = [.5, -.85];                                         // direção da luz (frente e de cima)
-function esc(hex, f) { const n = parseInt(hex.slice(1), 16); const c = k => Math.max(0, Math.min(255, Math.round(((n >> k) & 255) * f))); return 'rgb(' + c(16) + ',' + c(8) + ',' + c(0) + ')'; }
+const hx = v => ('0' + Math.max(0, Math.min(255, Math.round(v))).toString(16)).slice(-2);
+function esc(hex, f) { const n = parseInt(hex.slice(1), 16); return '#' + hx(((n >> 16) & 255) * f) + hx(((n >> 8) & 255) * f) + hx((n & 255) * f); }   // escurece
+function claro(hex, f) { const n = parseInt(hex.slice(1), 16), m = k => ((n >> k) & 255) + (255 - ((n >> k) & 255)) * f; return '#' + hx(m(16)) + hx(m(8)) + hx(m(0)); }   // clareia
+const COR_AKIRA = COR;
+let EST = null;
+/* Estilo de personagem: cores + tipo de cabelo. Serve pro Akira, inimigos e NPCs (mesmo corpo, roupa/cabelo diferentes) */
+function fazEstilo(c) {
+  const branco = c.gi === '#fdfbf6';
+  const cor = {
+    pele: c.pele, peleS: esc(c.pele, .82),
+    gi: c.gi, giS: c.giS || (branco ? '#aeb8d8' : esc(c.gi, .74)), giSS: c.giSS || (branco ? '#7e8cb8' : esc(c.gi, .55)),
+    cab: c.cab, cabS: esc(c.cab, .5), cabL: c.cabL || claro(c.cab, .28), cabL2: claro(c.cab, .55)
+  };
+  if (c.id && c.id.indexOf('akira') === 0) Object.assign(cor, { cab: '#222850', cabS: '#10142e', cabL: '#3f58b0', cabL2: '#8fa8f0' });
+  return { id: c.id, cor, faixa: c.faixa || '#f2f2f2', cabelo: c.cabelo || 'espeto', banda: c.banda || null, iris: c.iris || '#b4561c', olho: c.olho || null, boca: c.boca || null, esc: c.esc || 1, externo: !!c.externo };
+}
+const ESTILO_AKIRA = faixa => fazEstilo({ id: 'akira' + faixa, gi: '#fdfbf6', pele: '#f6c19a', cab: '#222850', faixa, cabelo: 'espeto', externo: true });
 
 function traco(g, ax, ay, bx, by, w, cor) { g.strokeStyle = cor; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
 // Membro com contorno + sombra + luz (cel-shading)
@@ -2311,8 +2341,11 @@ function cabeca(g, J, P, faixa) {
   const hs = P.hair;
   // balança as mechas: gira a ponta em torno da raiz
   const bal = (r, t, f) => { const a = hs * f * D2R, dx = t[0] - r[0], dy = t[1] - r[1]; return [r[0] + dx * Math.cos(a) + dy * Math.sin(a), r[1] - dx * Math.sin(a) + dy * Math.cos(a)]; };
+  let escM = 1;
   const mecha = (b1, b2, t, curva, cor, f) => {
-    const ra = [(b1[0] + b2[0]) / 2, (b1[1] + b2[1]) / 2], tp = bal(ra, t, f == null ? 1 : f);
+    const ra = [(b1[0] + b2[0]) / 2, (b1[1] + b2[1]) / 2];
+    t = [ra[0] + (t[0] - ra[0]) * escM, ra[1] + (t[1] - ra[1]) * escM];
+    const tp = bal(ra, t, f == null ? 1 : f);
     const dx = tp[0] - ra[0], dy = tp[1] - ra[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
     const c1 = [(b1[0] + tp[0]) / 2 + nx * curva, (b1[1] + tp[1]) / 2 + ny * curva], c2 = [(b2[0] + tp[0]) / 2 + nx * curva * .5, (b2[1] + tp[1]) / 2 + ny * curva * .5];
     const cam = c => { c.moveTo(b1[0], b1[1]); c.quadraticCurveTo(c1[0], c1[1], tp[0], tp[1]); c.quadraticCurveTo(c2[0], c2[1], b2[0], b2[1]); c.closePath(); };
@@ -2320,12 +2353,32 @@ function cabeca(g, J, P, faixa) {
     g.beginPath(); g.moveTo(ra[0], ra[1]); g.quadraticCurveTo((ra[0] + tp[0]) / 2 + nx * curva * .6, (ra[1] + tp[1]) / 2 + ny * curva * .6, ra[0] + dx * .86, ra[1] + dy * .86);
     g.lineWidth = 1.3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
   };
-  // cabelo de trás (atrás do rosto)
-  mecha([-11, -12], [-4, -16], [-36, -22], -6);
-  mecha([-14, -4], [-12, -12], [-37, -6], -5);
-  mecha([-13, 4], [-14, -4], [-31, 11], -4);
-  mecha([-6, -16], [2, -17], [-17, -37], 4);
-  mecha([1, -17], [9, -14], [7, -39], 5, null, .6);
+  // cabelo de trás (atrás do rosto): muda conforme o tipo (espeto, curto, coque, longo, trança, rabo, careca)
+  const H = EST.cabelo;
+  if (EST.banda) {                                                      // pontas da faixa da testa voando
+    const rb = [[-13, -7], [-31, -7 - hs * .35], [-40, 1 - hs * .2]], rb2 = [[-13, -7], [-29, -1 - hs * .25], [-35, 8]];
+    for (const a of [rb, rb2]) { traco(g, a[0][0], a[0][1], a[1][0], a[1][1], 6.4, OUT); traco(g, a[1][0], a[1][1], a[2][0], a[2][1], 5.2, OUT); traco(g, a[0][0], a[0][1], a[1][0], a[1][1], 3.6, EST.banda); traco(g, a[1][0], a[1][1], a[2][0], a[2][1], 2.6, esc(EST.banda, .8)); }
+  }
+  if (H === 'espeto' || H === 'curto' || H === 'rabo') {
+    escM = H === 'espeto' ? 1 : .45;
+    mecha([-11, -12], [-4, -16], [-36, -22], -6);
+    mecha([-14, -4], [-12, -12], [-37, -6], -5);
+    mecha([-13, 4], [-14, -4], [-31, 11], -4);
+    if (H === 'espeto') { mecha([-6, -16], [2, -17], [-17, -37], 4); mecha([1, -17], [9, -14], [7, -39], 5, null, .6); }
+    escM = 1;
+    if (H === 'rabo') { mecha([-14, -12], [-12, -3], [-44, 8], -9, null, 1.3); forma(g, c => c.rect(-17, -11, 5, 8), EST.faixa, esc(EST.faixa, .7), 1, 2); }
+  } else if (H === 'coque' || H === 'tranca') {
+    escM = .45; mecha([-13, -12], [-5, -16], [-36, -22], -6); mecha([-14, -4], [-12, -12], [-37, -6], -5); escM = 1;
+    if (H === 'coque') { forma(g, c => c.arc(-7, -22, 7.2, 0, 7), COR.cab, COR.cabS, 2.2, 2.6); g.beginPath(); g.moveTo(-11, -24); g.quadraticCurveTo(-7, -27, -3, -24); g.lineWidth = 1.2; g.strokeStyle = COR.cabL; g.stroke(); }
+    else for (let k = 0; k < 6; k++) {                                  // trança: bolinhas em fila
+      const a = (hs * .5 + k * 3) * D2R, bx = -14 - k * 1.5, by = 2 + k * 7.5, rx2 = bx * Math.cos(a) - (by - 2) * Math.sin(a) * .2;
+      forma(g, c => c.ellipse(rx2, by, 4.4 - k * .2, 4.6, 0, 0, 7), COR.cab, COR.cabS, 1.6, 2.2);
+    }
+  } else if (H === 'longo') {
+    const e1 = bal([-10, -4], [-24, 42], .5), e2 = bal([-10, -4], [-8, 40], .5);
+    forma(g, c => { c.moveTo(-12, -14); c.bezierCurveTo(-28, -10, -30, 18, e1[0], e1[1]); c.lineTo(e2[0], e2[1]); c.bezierCurveTo(-9, 22, -1, 12, 2, 4); c.closePath(); }, COR.cab, COR.cabS, 3, 2.8);
+    g.beginPath(); g.moveTo(-17, -4); g.quadraticCurveTo(-21, 14, e1[0] + 4, e1[1] - 4); g.lineWidth = 1.3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+  }
   forma(g, c => { c.moveTo(-12, -14); c.bezierCurveTo(-24, -10, -22, 6, -10, 11); c.lineTo(-4, 6); c.lineTo(0, -14); c.closePath(); }, COR.cab, COR.cabS, 2.4, 2.6);
   // pescoço
   traco(g, -1, 8, -1, 18, 8, OUT); traco(g, -1, 8, -1, 18, 5.4, COR.peleS);
@@ -2351,7 +2404,7 @@ function cabeca(g, J, P, faixa) {
     const esc2 = c => { c.moveTo(ox - 5.2, oy - 1 + ang); c.quadraticCurveTo(ox, oy - 6.4 + ang * 1.5, ox + 5.4, oy - 1.4); c.quadraticCurveTo(ox + 4.5, oy + 4.8, ox, oy + 5.2); c.quadraticCurveTo(ox - 4.5, oy + 4.8, ox - 5.2, oy - 1 + ang); c.closePath(); };
     g.beginPath(); esc2(g); g.fillStyle = '#ffffff'; g.fill();
     g.save(); g.beginPath(); esc2(g); g.clip();
-    const gr = g.createLinearGradient(0, oy - 6, 0, oy + 6); gr.addColorStop(0, '#3a1d0e'); gr.addColorStop(.45, '#b4561c'); gr.addColorStop(1, '#ffc15a');
+    const gr = g.createLinearGradient(0, oy - 6, 0, oy + 6); gr.addColorStop(0, esc(EST.iris, .38)); gr.addColorStop(.45, EST.iris); gr.addColorStop(1, claro(EST.iris, .5));
     g.beginPath(); g.ellipse(ox + .8, oy + .4, 3.9, 5, 0, 0, 7); g.fillStyle = gr; g.fill();
     g.beginPath(); g.ellipse(ox + 1.1, oy + .2, 1.9, 2.6, 0, 0, 7); g.fillStyle = '#1a0c10'; g.fill();
     g.restore();
@@ -2381,14 +2434,19 @@ function cabeca(g, J, P, faixa) {
     const t4 = bal([-9, -4], [-9.5, 6], .8);
     c.quadraticCurveTo(-9, -9, t4[0], t4[1]); c.quadraticCurveTo(-12, -2, -14.5, -3); c.closePath();
   };
-  forma(g, franja, COR.cab, COR.cabS, 3, 2.8);
+  if (H !== 'careca') forma(g, franja, COR.cab, COR.cabS, 3, 2.8);
   // brilho do cabelo (faixa clara curva) e mechas internas
-  g.save(); g.beginPath(); franja(g); g.clip();
+  if (H !== 'careca') { g.save(); g.beginPath(); franja(g); g.clip();
   g.beginPath(); g.moveTo(-10, -13); g.quadraticCurveTo(0, -20, 11, -13); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
   g.beginPath(); g.moveTo(-5, -15.5); g.quadraticCurveTo(2, -18.5, 8, -15); g.lineWidth = 1.4; g.strokeStyle = COR.cabL2; g.stroke();
   g.lineWidth = 1.1; g.strokeStyle = COR.cabL;
   for (const [a, b, c2, d2] of [[11, -9, 13, -5], [6, -10, 7.5, -5], [0, -11, 0.5, -6]]) { g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
-  g.restore();
+  g.restore(); }
+  if (EST.banda) {                                                      // faixa na testa
+    g.beginPath(); g.moveTo(-14, -6.5); g.quadraticCurveTo(0, -17.5, 14.4, -8.2); g.lineWidth = 7; g.strokeStyle = OUT; g.lineCap = 'round'; g.stroke();
+    g.lineWidth = 4.2; g.strokeStyle = EST.banda; g.stroke();
+    g.beginPath(); g.moveTo(-8, -12.4); g.quadraticCurveTo(0, -15.2, 8, -12.6); g.lineWidth = 1.2; g.strokeStyle = claro(EST.banda, .45); g.stroke();
+  }
   // sobrancelha (por cima do cabelo, estilo anime)
   const br = P.eye === 'angry' || P.brow === 1 ? 1.8 : P.brow === 2 ? -1.6 : 0;
   g.beginPath(); g.moveTo(1.2, -4.2 + br * .4); g.lineTo(10.5, -5.2 - br); g.lineWidth = 2.3; g.strokeStyle = OUT; g.lineCap = 'round'; g.stroke();
@@ -2402,7 +2460,8 @@ function aura(g, J, P) {                                         // brilho azul 
 }
 
 /* Desenha o Akira inteiro virado pra direita; a origem (0,0) é o chão entre os pés */
-function desenhar(g, P, faixa) {
+function desenhar(g, P, est) {
+  EST = est; COR = est.cor; const faixa = est.faixa;
   const J = juntas(P);
   g.save();
   if (P.sx !== 1) { g.translate(J.H[0], 0); g.scale(P.sx, 1); g.translate(-J.H[0], 0); }
@@ -2425,31 +2484,35 @@ const cacheQ = {};
 let externo = null;                                              // sprites PNG carregados de fora (opcional)
 function novoCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 // Devolve o quadro pronto (canvas) em "sc" pixels por unidade de desenho
-function quadro(nome, i, sc, faixa) {
-  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + faixa + '|' + (externo ? 'E' : 'P');
+function quadro(nome, i, sc, est) {
+  const usaExt = externo && est.externo && externo.anims[nome];
+  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + est.id + '|' + (usaExt ? 'E' : 'P');
   if (cacheQ[key]) return cacheQ[key];
   const c = novoCanvas(Math.ceil(AK.UW * sc), Math.ceil(AK.UH * sc)), g = c.getContext('2d');
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-  if (externo && externo.anims[nome]) {
+  if (usaExt) {
     const m = externo.meta, a = externo.anims[nome], fw = m.frameW, fh = m.frameH;
     const ex = (i % a.frames) * fw, ey = a.row * fh;
     g.drawImage(externo.img, ex, ey, fw, fh, 0, 0, c.width, c.height);
   } else {
     g.scale(sc, sc); g.translate(AK.OX, AK.OY);
-    desenhar(g, posePorQuadro(nome, i), faixa);
+    const P = posePorQuadro(nome, i);
+    if (est.olho && P.eye === 'open') { P.eye = est.olho; P.brow = Math.max(P.brow, 1); }
+    if (est.boca && P.mouth === 'closed') P.mouth = est.boca;
+    desenhar(g, P, est);
   }
   return (cacheQ[key] = c);
 }
 function limparCache() { for (const k in cacheQ) delete cacheQ[k]; }
 // Monta a sprite sheet inteira (uma linha por animação) + JSON
-function montarFolha(sc, faixa) {
+function montarFolha(sc, est) {
   const nomes = Object.keys(AKIRA_ANIMATIONS), maxF = Math.max(...nomes.map(n => AKIRA_ANIMATIONS[n].frames));
   const fw = Math.round(AK.UW * sc), fh = Math.round(AK.UH * sc);
   const folha = novoCanvas(fw * maxF, fh * nomes.length), g = folha.getContext('2d');
   const meta = { frameW: fw, frameH: fh, anchor: { x: Math.round(AK.OX * sc), y: Math.round(AK.OY * sc) }, animations: {} };
   nomes.forEach((n, row) => {
     const an = AKIRA_ANIMATIONS[n]; meta.animations[n] = { row, frames: an.frames, fps: an.fps, loop: an.loop };
-    for (let i = 0; i < an.frames; i++) { g.drawImage(quadro(n, i, sc, faixa), i * fw, row * fh, fw, fh); }
+    for (let i = 0; i < an.frames; i++) { g.drawImage(quadro(n, i, sc, est), i * fw, row * fh, fw, fh); }
   });
   return { folha, meta };
 }
@@ -2464,7 +2527,7 @@ function carregarExterno(urlPng, meta) {
 }
 function usarProcedural() { externo = null; limparCache(); }
 
-return { ANIM: AKIRA_ANIMATIONS, AK, quadro, limparCache, montarFolha, carregarExterno, usarProcedural, externoAtivo: () => !!externo };
+return { ANIM: AKIRA_ANIMATIONS, AK, quadro, limparCache, montarFolha, carregarExterno, usarProcedural, fazEstilo, ESTILO_AKIRA, externoAtivo: () => !!externo };
 })();
 
 /* =====================================================================
@@ -2481,19 +2544,23 @@ function desenharObj(o, sx, sy) {
       desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0); break;
     }
     case 'npc': {
-      personagem(sx, sy, o.dir, 'relax', Math.floor(tempo * 4 + o.x) % 4, o.pal, false);
+      virarObj(o);
+      desenharAkira(sx, sy, 'relax', Math.floor(tempo * 3 + o.x) % 4, o.face, 0, 1, false, estiloPal(o.pal));
+      const ey = Math.round(sy - 48 * (o.pal.esc || 1));
       ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
       const w = ctx.measureText(o.nome).width + 6;
-      ctx.fillStyle = 'rgba(15,20,35,.75)'; ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - 38), Math.round(w), 9);
-      ctx.fillStyle = '#fff'; ctx.fillText(o.nome, Math.round(sx), Math.round(sy - 31));
+      ctx.fillStyle = 'rgba(15,20,35,.75)'; ctx.fillRect(Math.round(sx - w / 2), ey, Math.round(w), 9);
+      ctx.fillStyle = '#fff'; ctx.fillText(o.nome, Math.round(sx), ey + 7);
       break;
     }
     case 'inimigo': {
       if (!o.vivo && Math.floor(o.t * 20) % 2) break;
       const [an, fr] = animInimigo(o);
-      personagem(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, o.dir, an, fr, o.pal, o.flash > 0);
-      if (o.vivo && o.hp < o.hpMax) { R(ctx, Math.round(sx) - 8, Math.round(sy) - 33, 16, 3, '#000'); R(ctx, Math.round(sx) - 7, Math.round(sy) - 32, Math.max(0, Math.round(14 * o.hp / o.hpMax)), 1, '#e0453a'); }
-      if (o.est === 'prep') { ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4040'; ctx.fillText('!', Math.round(sx), Math.round(sy) - 36); }
+      virarObj(o);
+      desenharAkira(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, an, fr, o.face, 0, 1, o.flash > 0, estiloPal(o.pal));
+      const hy = Math.round(sy - 46 * (o.pal.esc || 1));
+      if (o.vivo && o.hp < o.hpMax) { R(ctx, Math.round(sx) - 8, hy, 16, 3, '#000'); R(ctx, Math.round(sx) - 7, hy + 1, Math.max(0, Math.round(14 * o.hp / o.hpMax)), 1, '#e0453a'); }
+      if (o.est === 'prep') { ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4040'; ctx.fillText('!', Math.round(sx), hy - 3); }
       break;
     }
     case 'boneco': {
@@ -2568,7 +2635,7 @@ function renderizar(dt) {
   if (!dlg.ativo && jog.est === 'livre') {
     const alvo = alvoInteracao();
     if (alvo) {
-      const [sx, sy] = iso(alvo.x, alvo.y), alt = alvo.tipo === 'npc' ? 46 : alvo.tipo === 'placa' ? 40 : 24;
+      const [sx, sy] = iso(alvo.x, alvo.y), alt = alvo.tipo === 'npc' ? 58 : alvo.tipo === 'placa' ? 40 : 24;
       const txt = 'E ' + INTERATIVOS[alvo.tipo]; g.font = 'bold 8px monospace';
       const w = g.measureText(txt).width + 8;
       g.fillStyle = 'rgba(15,20,35,.92)'; g.fillRect(Math.round(sx - w / 2), Math.round(sy - alt - 11), Math.round(w), 11);
@@ -2623,7 +2690,7 @@ function baixar(nome, blob) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 function exportarSprites() {
-  const { folha, meta } = Akira.montarFolha(1.5, FAIXAS[estado.faixa].cor);
+  const { folha, meta } = Akira.montarFolha(1.5, estiloAkira());
   folha.toBlob(b => baixar('akira-sheet.png', b));
   baixar('akira-sheet.json', new Blob([JSON.stringify(meta, null, 1)], { type: 'application/json' }));
   aviso('Sprites exportados: akira-sheet.png + akira-sheet.json');
@@ -2634,7 +2701,7 @@ if (baseExt) {
   fetch(baseExt + '.json').then(r => r.json()).then(m => Akira.carregarExterno(baseExt + '.png', m))
     .then(() => aviso('Sprites PNG carregados!')).catch(() => console.warn('Sprites externos não encontrados; usando o desenho por código.'));
 }
-window.AKIRA = { Akira, exportarSprites, jog };                       // para testes no console
+window.AKIRA = { Akira, exportarSprites, jog, carregarMapa };                       // para testes no console
 
 gerarSprites();
 gerarSprites2();
