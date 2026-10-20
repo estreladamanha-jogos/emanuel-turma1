@@ -14,10 +14,7 @@
   main { position: fixed; inset: 0; z-index: 0; }
   #hud, #dica, #dialogo, #aviso, #joystick, .btn { z-index: 5; }
   #menu { z-index: 10; }
-  canvas {
-    display: block; width: 100%; height: 100%; outline: none;
-    image-rendering: crisp-edges; image-rendering: pixelated;
-  }
+  canvas { display: block; width: 100%; height: 100%; outline: none; }
 
   /* ===== HUD ===== */
   #hud {
@@ -106,6 +103,9 @@
   #btnS { right: 30px; bottom: 122px; width: 58px; height: 58px; background: rgba(155, 227, 107, .9); font-size: 13px; }
   #btnL { right: 100px; bottom: 120px; width: 50px; height: 50px; background: rgba(200, 200, 220, .85); font-size: 13px; }
   #btnE { right: 186px; bottom: 30px; width: 56px; height: 56px; background: rgba(255, 255, 255, .85); font-size: 22px; }
+  #btnV { right: 160px; bottom: 100px; width: 46px; height: 46px; background: rgba(255, 170, 120, .9); font-size: 12px; }
+  #btnC { right: 214px; bottom: 96px; width: 46px; height: 46px; background: rgba(255, 120, 150, .9); font-size: 12px; }
+  #btnR { right: 252px; bottom: 30px; width: 46px; height: 46px; background: rgba(170, 220, 255, .9); font-size: 12px; }
   #btnM { top: 6px; right: 8px; width: 44px; height: 44px; background: rgba(255, 255, 255, .8); font-size: 20px; }
   @media (pointer: coarse) {
     .btn, #joystick { display: block; }
@@ -144,6 +144,7 @@
 
 <footer id="dica">
   WASD/Setas andar • J bater • K técnica de aura • Espaço esquivar • L defender<br>
+  Shift correr • V pular • C rajada de socos • T comemorar • Shift+P exportar sprites<br>
   E interagir • M menu • 1-4 trocar combo • Q comer • Shift+R apagar save
 </footer>
 
@@ -153,6 +154,9 @@
 <button class="btn" id="btnS" data-k="Space" type="button">ESQ</button>
 <button class="btn" id="btnL" data-k="KeyL" type="button">DEF</button>
 <button class="btn" id="btnE" data-k="KeyE" type="button">E</button>
+<button class="btn" id="btnV" data-k="KeyV" type="button">PULO</button>
+<button class="btn" id="btnC" data-k="KeyC" type="button">RAJ</button>
+<button class="btn" id="btnR" data-k="ShiftLeft" type="button">RUN</button>
 <button class="btn" id="btnM" data-k="KeyM" type="button">☰</button>
 
 <script>
@@ -609,7 +613,8 @@ function carregarSave() {
 const jog = {
   tipo: 'jogador', x: 0, y: 0, r: .26, dir: 2, anda: false, fase: 0, est: 'livre', t: 0,
   ci: 0, buf: false, tec: null, fez: false, cadeia: 0, fw: { x: 1, y: 0 }, iframes: 0, esqCd: 0,
-  bloqT: 0, ex: 0, ey: 0, def: false, flash: 0, kx: 0, ky: 0, morto: false
+  bloqT: 0, ex: 0, ey: 0, def: false, flash: 0, kx: 0, ky: 0, morto: false,
+  face: 1, z: 0, vz: 0, ar: false, pre: 0, pos: 0, corre: false, defT: 9, gdAnt: false, vit: 0, rh: 0, pt: 0, rt: 0, escudo: 0, tkId: 'soco1'
 };
 let mapa = null;
 
@@ -1118,6 +1123,7 @@ addEventListener('keydown', e => {
   if (!e.repeat) {
     edge[e.code] = true;
     if (e.code === 'KeyR' && e.shiftKey) reiniciar();
+    if (e.code === 'KeyP' && e.shiftKey) exportarSprites();
   }
   teclas[e.code] = true;
 });
@@ -1149,14 +1155,16 @@ document.querySelectorAll('.btn').forEach(b => {                       // botõe
    7. TELA, CÂMERA E COLISÃO
    ===================================================================== */
 const canvas = document.getElementById('jogo'), ctx = canvas.getContext('2d');
-let W = 480, H = 270, vinheta = null;
+let W = 480, H = 270, SC = 2, vinheta = null;      // SC = zoom do mundo pixelado; o canvas tem resolução cheia (Akira não é pixel art)
 const camera = { x: 0, y: 0 };
 let shake = 0, hitstop = 0, tempo = 0;
 function redimensionar() {
   const S = Math.max(2, Math.round(Math.min(innerHeight / 270, innerWidth / 380)));   // zoom inteiro = pixel nítido
   W = Math.ceil(innerWidth / S); H = Math.ceil(innerHeight / S);
-  canvas.width = W; canvas.height = H;
-  ctx.imageSmoothingEnabled = false;
+  if (SC !== S) { SC = S; if (typeof Akira !== 'undefined') Akira.limparCache(); }
+  canvas.width = W * S; canvas.height = H * S;
+  ctx.imageSmoothingEnabled = false;                               // cenário continua pixelado e nítido
+  ctx.setTransform(S, 0, 0, S, 0, 0);
   vinheta = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .4, W / 2, H / 2, Math.max(W, H) * .8);
   vinheta.addColorStop(0, 'rgba(0,10,0,0)'); vinheta.addColorStop(1, 'rgba(0,10,0,.4)');
 }
@@ -1362,18 +1370,44 @@ function interagir() {
 /* =====================================================================
    10. COMBATE (golpes, especial, esquiva, defesa, dano)
    ===================================================================== */
-const textos = [], fagulhas = [], aneis = [];
+const textos = [], fagulhas = [], aneis = [], fx = [], rastros = [];
+const RAJ = [                                                           // 3 golpes da rajada (tecla C)
+  { nome: 'Jab', dano: 5, alc: 1.3, arco: 120, emp: .25, pose: 'soco' },
+  { nome: 'Direto', dano: 6, alc: 1.35, arco: 120, emp: .3, pose: 'soco' },
+  { nome: 'Gancho', dano: 10, alc: 1.4, arco: 130, emp: .9, pose: 'soco', quebra: true }];
+const TKANIM = { soco1: 'punch', soco2: 'punchHeavy', cotovelo: 'elbow', chute: 'highKick', chute2: 'kick', giratorio: 'spinKick' };
+function virar() { const v = DIRV[jog.dir][0]; if (v) jog.face = v > 0 ? 1 : -1; }   // Akira olha pra esquerda/direita da tela
 function popup(x, y, txt, cor) { textos.push({ x, y, txt, t: 0, cor }); }
 function fagulha(x, y, cor, n) {
   const [sx, sy] = iso(x, y);
   for (let k = 0; k < n; k++) { const a = Math.random() * 6.28, v = 30 + Math.random() * 40; fagulhas.push({ x: sx, y: sy - 12, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, t: 0, vida: .3 + Math.random() * .2, cor }); }
 }
 
+// Efeitos de anime em alta resolução (poeira, impacto, corte, linhas de velocidade)
+function fxPos(h) { const [sx, sy] = iso(jog.x, jog.y); return [sx, sy - (h == null ? 20 : h) - jog.z]; }
+function fxPoeira(n, forte) {
+  const [sx, sy] = iso(jog.x, jog.y);
+  for (let k = 0; k < n; k++) fx.push({ tipo: 'poeira', x: sx + (Math.random() - .5) * 8, y: sy - 1, vx: (Math.random() - .5) * 30 - jog.face * 8, vy: -4 - Math.random() * 10, r: (forte ? 3.5 : 2.2) + Math.random() * 2, t: 0, vida: .4 + Math.random() * .2 });
+}
+function fxLinhas(n, vx, vy) {
+  const [sx, sy] = fxPos(18);
+  for (let k = 0; k < n; k++) fx.push({ tipo: 'linha', x: sx - vx * (10 + Math.random() * 12) + (Math.random() - .5) * 6, y: sy + (Math.random() - .5) * 28, dx: -vx, dy: -vy * .5, len: 10 + Math.random() * 12, t: 0, vida: .16 });
+}
+function fxCorte(tk, forte) {                                             // rastro em arco na direção real do golpe
+  const v = DIRV[jog.dir], [sx, sy] = fxPos(tk.pose === 'chute' ? 12 : 22);
+  fx.push({ tipo: 'corte', x: sx + v[0] * 8, y: sy + v[1] * 4, ang: Math.atan2(v[1] * .5, v[0]), r: forte ? 22 : 17, t: 0, vida: .15 });
+}
+function fxImpacto(wx, wy, forte) {
+  const [sx, sy] = iso(wx, wy);
+  fx.push({ tipo: 'impacto', x: sx, y: sy - 16, tam: forte ? 15 : 10, rot: Math.random() * 6.28, t: 0, vida: .22 });
+}
+
 function iniciarAtaque(i, ix, iy) {
   const tk = TECNICAS[COMBOS[estado.combo].seq[i]];
   if (ix || iy) jog.dir = dirDeVetor(ix, iy);
+  virar();
   jog.fw = sv2w(DIRV[jog.dir][0], DIRV[jog.dir][1]);
-  jog.est = 'ataque'; jog.ci = i; jog.t = 0; jog.tec = tk; jog.fez = false; jog.buf = false;
+  jog.est = 'ataque'; jog.ci = i; jog.t = 0; jog.tec = tk; jog.tkId = COMBOS[estado.combo].seq[i]; jog.fez = false; jog.buf = false;
   if (i === 0) jog.cadeia = 0;
 }
 function golpear(tk) {
@@ -1394,11 +1428,11 @@ function golpear(tk) {
     if (jog.cadeia >= seq.length && jog.ci === seq.length - 1) {          // combo completo!
       estado.aura = Math.min(maxAura(), estado.aura + 12); popup(jog.x, jog.y, 'COMBO!', '#f4d03f');
     }
-    hitstop = .05; shake = Math.max(shake, 3);
+    hitstop = tk.quebra ? .08 : .05; shake = Math.max(shake, tk.quebra ? 5 : 3);
   } else jog.cadeia = 0;                                                // errou: sem aura e quebra a corrente
 }
 function danoEm(o, dano, tk, dx, dy) {
-  popup(o.x, o.y, '' + dano, '#fff'); fagulha(o.x, o.y, '#ffe45e', 6);
+  popup(o.x, o.y, '' + dano, '#fff'); fagulha(o.x, o.y, '#ffe45e', 8); fxImpacto(o.x, o.y, !!tk.quebra);
   o.flash = .12;
   if (o.alvo) { o.wob = .35; return; }                                   // boneco do dojo: só balança
   o.hp -= dano; o.stun = tk.quebra ? .45 : .25;                          // golpe forte desequilibra
@@ -1410,26 +1444,34 @@ function danoEm(o, dano, tk, dx, dy) {
     if (r < .3) { estado.inv.onigiri = (estado.inv.onigiri || 0) + 1; aviso('Dropou: Onigiri'); }
     else if (r < .45) { estado.inv.cha = (estado.inv.cha || 0) + 1; aviso('Dropou: Chá verde'); }
     salvar();
+    if (!mapa.objs.some(e => e.tipo === 'inimigo' && e.vivo)) jog.vit = .6;       // último inimigo caiu: comemora
   }
 }
 function iniciarEspecial() {
   if (estado.aura < custoEsp()) { aviso('Aura insuficiente! (precisa de ' + custoEsp() + ')'); return; }
-  estado.aura -= custoEsp(); jog.est = 'especial'; jog.t = 0; jog.fez = false;
+  estado.aura -= custoEsp(); jog.est = 'especial'; jog.t = 0; jog.fez = false; virar();
 }
 function iniciarEsquiva(ix, iy) {
   if (jog.esqCd > 0) return;
   const v = (ix || iy) ? [ix, iy] : DIRV[jog.dir];
   const w = sv2w(v[0], v[1]);
   if (ix || iy) jog.dir = dirDeVetor(ix, iy);
+  virar(); jog.rt = 0; fxPoeira(5, true);
   jog.est = 'esquiva'; jog.t = 0; jog.ex = w.x; jog.ey = w.y;
   jog.iframes = .28; jog.esqCd = Math.max(.35, .8 - (estado.attr.agi - 1) * .04);
 }
 function danoJogador(dano, ox, oy) {
-  if (jog.iframes > 0 || jog.morto) return;
+  if (jog.iframes > 0 || jog.morto || jog.z > 5) return;               // no ar o golpe passa por baixo
   const guarda = jog.est === 'livre' && teclas.KeyL;
   const d = Math.hypot(jog.x - ox, jog.y - oy) || 1;
-  if (guarda) { dano = Math.ceil(dano * .25); estado.aura = Math.min(maxAura(), estado.aura + 2); fagulha(jog.x, jog.y, '#9fd8ff', 5); }
-  else { jog.est = 'dano'; jog.t = .28; jog.kx = (jog.x - ox) / d * 4; jog.ky = (jog.y - oy) / d * 4; fagulha(jog.x, jog.y, '#ff6b5a', 6); }
+  if (guarda && jog.defT < .18) {                                        // defesa perfeita: no tempo certo!
+    estado.aura = Math.min(maxAura(), estado.aura + 8); popup(jog.x, jog.y, 'PERFEITO!', '#9fe8ff');
+    fagulha(jog.x, jog.y, '#bff0ff', 10); jog.escudo = .25; jog.iframes = .3; hitstop = .06; shake = 3;
+    for (const o of mapa.objs) if (o.tipo === 'inimigo' && o.x === ox && o.y === oy) { o.stun = .55; o.kx = -(jog.x - ox) / d * 5; o.ky = -(jog.y - oy) / d * 5; o.est = 'persegue'; }
+    return;
+  }
+  if (guarda) { jog.escudo = .2; dano = Math.ceil(dano * .25); estado.aura = Math.min(maxAura(), estado.aura + 2); fagulha(jog.x, jog.y, '#9fd8ff', 5); }
+  else { jog.est = 'dano'; jog.z = 0; jog.ar = false; jog.t = .28; jog.kx = (jog.x - ox) / d * 4; jog.ky = (jog.y - oy) / d * 4; fagulha(jog.x, jog.y, '#ff6b5a', 6); }
   estado.hp -= dano; popup(jog.x, jog.y, '-' + dano, '#ff6b5a'); jog.flash = .15; shake = 4; hitstop = .04;
   if (estado.hp <= 0) { estado.hp = 0; jog.morto = true; jog.est = 'ko'; jog.t = 0; }
 }
@@ -1444,19 +1486,43 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
   if (jog.esqCd > 0) jog.esqCd -= dt;
   if (jog.bloqT > 0) jog.bloqT -= dt;
   if (jog.flash > 0) jog.flash -= dt;
-  jog.anda = false; jog.def = false;
+  if (jog.escudo > 0) jog.escudo -= dt;
+  jog.anda = false; jog.def = false; jog.corre = false;
+  const gd = ctrl && !!teclas.KeyL && (jog.est === 'livre');            // timing da defesa: conta desde que apertou L
+  if (gd && !jog.gdAnt) jog.defT = 0;
+  jog.gdAnt = gd; if (gd) jog.defT += dt;
+  const agi = 1 + (estado.attr.agi - 1) * .03;
   switch (jog.est) {
     case 'livre': {
-      jog.def = ctrl && !!teclas.KeyL;
+      jog.def = gd;
       if (ix || iy) {
-        jog.dir = dirDeVetor(ix, iy); jog.anda = true; jog.fase += dt * 10;
-        andar(jog, ix, iy, (jog.def ? .4 : 1) * (1 + (estado.attr.agi - 1) * .03) * mag, dt);
+        jog.corre = !jog.def && !!(teclas.ShiftLeft || teclas.ShiftRight);
+        jog.dir = dirDeVetor(ix, iy); virar(); jog.anda = true; jog.fase += dt * (jog.corre ? 14 : 10);
+        andar(jog, ix, iy, (jog.def ? .4 : 1) * agi * mag * (jog.corre ? 1.55 : 1), dt);
+        if (jog.corre && dt > 0) {                                      // poeira e linhas de velocidade ao correr
+          jog.pt -= dt; if (jog.pt <= 0) { jog.pt = .1; fxPoeira(1); fxLinhas(1, DIRV[jog.dir][0], DIRV[jog.dir][1]); }
+          jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .07; rastros.push({ x: jog.x, y: jog.y, an: 'run', f: Math.floor(jog.fase / 6.283 * 8) % 8, face: jog.face, t: 0, vida: .2 }); }
+        }
       }
+      if (jog.vit > 0 && dt > 0) { jog.vit -= dt; if (jog.vit <= 0 && !ix && !iy) { jog.est = 'vitoria'; jog.t = 0; } }
       if (ctrl && jog.bloqT <= 0) {
         if (pegou('KeyJ')) iniciarAtaque(0, ix, iy);
         else if (pegou('KeyK')) iniciarEspecial();
         else if (pegou('Space')) iniciarEsquiva(ix, iy);
+        else if (pegou('KeyV')) { jog.est = 'pulo'; jog.t = 0; jog.pre = .08; jog.vz = 0; jog.z = 0; jog.ar = false; jog.pos = 0; }
+        else if (pegou('KeyC')) iniciarRajada(ix, iy);
+        else if (pegou('KeyT')) { jog.est = 'vitoria'; jog.t = 0; }
       }
+      break;
+    }
+    case 'pulo': {                                                       // pulo com altura (z): sombra fica no chão
+      jog.t += dt;
+      if (jog.pre > 0) { jog.pre -= dt; if (jog.pre <= 0) { jog.vz = 125; jog.ar = true; fxPoeira(4, true); } break; }
+      if (jog.ar) {
+        if (ix || iy) { jog.dir = dirDeVetor(ix, iy); virar(); andar(jog, ix, iy, .9 * agi * mag * ((teclas.ShiftLeft || teclas.ShiftRight) ? 1.4 : 1), dt); }
+        jog.vz -= 440 * dt; jog.z += jog.vz * dt;
+        if (jog.z <= 0 && jog.vz < 0) { jog.z = 0; jog.vz = 0; jog.ar = false; jog.pos = .12; fxPoeira(6, true); shake = Math.max(shake, 1.5); }
+      } else { jog.pos -= dt; if (jog.pos <= 0) jog.est = 'livre'; }
       break;
     }
     case 'ataque': {
@@ -1464,7 +1530,7 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
       jog.t += dt;
       if (ctrl && pegou('KeyJ')) jog.buf = true;
       const tAtivo = tk.prep, tRec = tk.prep + tk.ativo, tFim = tRec + tk.rec;
-      if (jog.t >= tAtivo && !jog.fez) { jog.fez = true; golpear(tk); }
+      if (jog.t >= tAtivo && !jog.fez) { jog.fez = true; fxCorte(tk, !!tk.quebra); golpear(tk); }
       if (jog.t >= tAtivo && jog.t < tRec) mover(jog, jog.fw.x * tk.avanco / tk.ativo * dt, jog.fw.y * tk.avanco / tk.ativo * dt);
       if (jog.t >= tRec) {
         if (ctrl && pegou('Space') && jog.esqCd <= 0) { iniciarEsquiva(ix, iy); break; }   // cancela a recuperação com esquiva
@@ -1473,10 +1539,19 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
       }
       break;
     }
+    case 'rajada': {                                                     // 3 golpes seguidos (jab, direto, gancho)
+      jog.t += dt;
+      const quando = [.2, .38, .56];
+      while (jog.rh < 3 && jog.t >= quando[jog.rh]) { fxCorte(RAJ[jog.rh], jog.rh === 2); golpear(RAJ[jog.rh]); jog.rh++; }
+      if (jog.t > .15 && jog.t < .6) mover(jog, jog.fw.x * 1.5 * dt, jog.fw.y * 1.5 * dt);
+      if (jog.t >= .5 && ctrl && pegou('Space') && jog.esqCd <= 0) { iniciarEsquiva(ix, iy); break; }
+      if (jog.t >= .72) { jog.est = 'livre'; jog.cadeia = 0; }
+      break;
+    }
     case 'especial': {
       jog.t += dt;
       if (jog.t >= ESPECIAL.prep && !jog.fez) {
-        jog.fez = true; aneis.push({ x: jog.x, y: jog.y, t: 0 }); hitstop = .08; shake = 5;
+        jog.fez = true; aneis.push({ x: jog.x, y: jog.y, t: 0 }); hitstop = .08; shake = 6; fxPoeira(8, true);
         const dano = Math.round((ESPECIAL.dano + (estado.attr.aur - 1) * 2) * multDano());
         for (const o of mapa.objs) {
           if ((o.tipo !== 'inimigo' && !o.alvo) || o.vivo === false) continue;
@@ -1489,13 +1564,25 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
     }
     case 'esquiva':
       jog.t += dt; mover(jog, jog.ex * 6.5 * dt, jog.ey * 6.5 * dt);
+      if (dt > 0) { jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .045; rastros.push({ x: jog.x, y: jog.y, an: 'dodge', f: Math.min(5, Math.floor(jog.t / .26 * 6)), face: jog.face, t: 0, vida: .26 }); } }
       if (jog.t >= .26) { jog.est = 'livre'; jog.bloqT = .18; }
       break;
     case 'dano':
       jog.t -= dt; mover(jog, jog.kx * dt, jog.ky * dt); jog.kx *= Math.exp(-8 * dt); jog.ky *= Math.exp(-8 * dt);
       if (jog.t <= 0) jog.est = 'livre';
       break;
+    case 'vitoria':
+      jog.t += dt;
+      if (jog.t >= 1.6 || (jog.t > .4 && (ix || iy))) jog.est = 'livre';
+      break;
   }
+}
+function iniciarRajada(ix, iy) {
+  if (estado.aura < 12) { aviso('Aura insuficiente para a rajada! (precisa de 12)'); return; }
+  estado.aura -= 12;
+  if (ix || iy) jog.dir = dirDeVetor(ix, iy);
+  virar(); jog.fw = sv2w(DIRV[jog.dir][0], DIRV[jog.dir][1]);
+  jog.est = 'rajada'; jog.t = 0; jog.rh = 0; jog.cadeia = 0; jog.tec = RAJ[0];
 }
 
 function moverInimigo(e, dx, dy) { mover(e, dx, dy); }
@@ -1533,7 +1620,8 @@ let fade = null;
 function carregarMapa(id, sx, sy) {
   mapa = MAPAS[id](); prepararCache(mapa);
   jog.x = sx != null ? sx : mapa.spawn.x; jog.y = sy != null ? sy : mapa.spawn.y;
-  jog.est = 'livre'; jog.dir = 2; textos.length = 0; fagulhas.length = 0; aneis.length = 0;
+  jog.est = 'livre'; jog.dir = 2; textos.length = 0; fagulhas.length = 0; aneis.length = 0; fx.length = 0; rastros.length = 0;
+  jog.z = 0; jog.vz = 0; jog.ar = false; jog.vit = 0;
   const [px, py] = iso(jog.x, jog.y); camera.x = px; camera.y = py - 14;
   hudChave = '';
 }
@@ -1594,7 +1682,9 @@ function atualizar(dt0) {
   for (const t of textos) t.t += dt0;
   for (const f of fagulhas) { f.t += dt0; f.x += f.vx * dt0; f.y += f.vy * dt0; f.vy += 120 * dt0; }
   for (const a of aneis) a.t += dt0;
-  [textos, fagulhas, aneis].forEach(l => { for (let i = l.length - 1; i >= 0; i--) if (l[i].t > (l[i].vida || .9)) l.splice(i, 1); });
+  for (const f of fx) { f.t += dt0; if (f.tipo === 'poeira') { f.x += f.vx * dt0; f.y += f.vy * dt0; f.vx *= Math.exp(-3 * dt0); } }
+  for (const r of rastros) r.t += dt0;
+  [textos, fagulhas, aneis, fx, rastros].forEach(l => { for (let i = l.length - 1; i >= 0; i--) if (l[i].t > (l[i].vida || .9)) l.splice(i, 1); });
 
   if (jog.morto) {                                                     // derrota
     jog.t += dt0;
@@ -1837,21 +1927,28 @@ function personagem(sx, sy, dir, anim, f, palAntiga, flash) {
 }
 // Qual animação/quadro cada lutador usa agora
 function animJogador() {
-  const t = jog.t;
+  const t = jog.t, A = Akira.ANIM;
+  const fr = (n, q) => Math.max(0, Math.min(A[n].frames - 1, Math.round(q * (A[n].frames - 1))));
   switch (jog.est) {
-    case 'ataque': {
-      const tk = jog.tec, tot = tk.prep + tk.ativo + tk.rec;
-      const anim = tk.pose === 'chute' ? (/lateral|giratório/.test(tk.nome) ? 'chute2' : 'chute') : 'soco';
-      return [anim, Math.min(7, Math.floor(t / tot * 8))];
+    case 'ataque': {                                                  // o tempo do golpe é "esticado" pra o soco/chute acertar no quadro certo
+      const tk = jog.tec, n = TKANIM[jog.tkId] || (tk.pose === 'chute' ? 'kick' : 'punch'), an = A[n];
+      const q = t < tk.prep ? t / tk.prep * an.imp : t < tk.prep + tk.ativo ? an.imp + (t - tk.prep) / tk.ativo * (an.seg - an.imp) : an.seg + (t - tk.prep - tk.ativo) / tk.rec * (1 - an.seg);
+      return [n, fr(n, q)];
     }
-    case 'esquiva': return ['esquiva', Math.min(7, Math.floor(t / .26 * 8))];
-    case 'dano': return ['hit', Math.min(7, Math.floor((.28 - t) / .28 * 8))];
-    case 'ko': return ['caido', Math.min(7, Math.floor(t / .8 * 8))];
-    case 'especial': return t < ESPECIAL.prep ? ['vitoria', 2] : ['soco', 4];
+    case 'rajada': return ['combo', Math.min(11, Math.floor(t / .72 * 12))];
+    case 'esquiva': return ['dodge', fr('dodge', t / .26)];
+    case 'dano': return ['hit', fr('hit', (.28 - t) / .28)];
+    case 'ko': return ['ko', fr('ko', t / .8)];
+    case 'especial': return ['aura', fr('aura', t < ESPECIAL.prep ? t / ESPECIAL.prep * .55 : .6 + (t - ESPECIAL.prep) / .35 * .4)];
+    case 'vitoria': return ['victory', Math.floor(t * 10) % 8];
+    case 'pulo':
+      if (jog.pre > 0) return ['jump', 0];
+      if (!jog.ar) return ['jump', 5];
+      return ['jump', jog.vz > 70 ? 1 : jog.vz > 25 ? 2 : jog.vz > -25 ? 3 : 4];
     default:
-      if (jog.def) return ['defesa', Math.floor(tempo * 10) % 8];
-      if (jog.anda) return ['walk', Math.floor(jog.fase / (Math.PI * 2) * 8) % 8];
-      return ['idle', Math.floor(tempo * 5) % 4];
+      if (jog.def) return ['block', Math.floor(tempo * 10) % 4];
+      if (jog.anda) return jog.corre ? ['run', Math.floor(jog.fase / 6.283 * 8) % 8] : ['walk', Math.floor(jog.fase / 6.283 * 8) % 8];
+      return ['idle', Math.floor(tempo * 8) % 6];
   }
 }
 function animInimigo(o) {
@@ -1863,21 +1960,512 @@ function animInimigo(o) {
   if (o.anda) return ['walk', Math.floor(o.fase / (Math.PI * 2) * 8) % 8];
   return ['idle', Math.floor(tempo * 5 + o.x) % 4];
 }
-// Rastro em arco do golpe (efeito de anime)
-function efeitoGolpe(sx, sy, dir) {
-  const tk = jog.tec; if (jog.est !== 'ataque' || jog.t < tk.prep - .02 || jog.t > tk.prep + tk.ativo + .08) return;
-  const v = DIRV[dir], p = [-v[1], v[0]], cx = sx + v[0] * 15, cy = sy - 13 + v[1] * 7.5;
-  for (let i = -3; i <= 3; i++) {
-    const fw = 3 - i * i * .35;
-    ctx.fillStyle = i % 2 ? '#ffffff' : '#ffe45e';
-    ctx.fillRect(Math.round(cx + p[0] * i * 2.4 + v[0] * fw), Math.round(cy + p[1] * i * 1.4 + v[1] * fw * .5), 2, 2);
+// Akira desenhado em resolução cheia (sprite anime 2D), com sombra suave no chão
+const SCR_AK = document.createElement('canvas');
+function desenharAkira(sx, sy, an, f, face, z, alfa, branco) {
+  const k = Akira.AK.K, sc = k * SC, q = Akira.quadro(an, f, sc, FAIXAS[estado.faixa].cor);
+  sx = Math.round(sx); sy = Math.round(sy);
+  const g = ctx;
+  if (alfa == null || alfa >= 1) {                                       // sombra suave (fica no chão mesmo pulando)
+    g.save(); g.translate(sx, sy); g.scale(1, .42);
+    const r = 14 * (1 - Math.min(.5, z / 60)), gr = g.createRadialGradient(0, 0, 1, 0, 0, r);
+    gr.addColorStop(0, 'rgba(0,0,0,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(-r, -r, r * 2, r * 2); g.restore();
+  }
+  let img = q;
+  if (branco) {                                                          // piscada branca ao levar dano
+    SCR_AK.width = q.width; SCR_AK.height = q.height; const t = SCR_AK.getContext('2d');
+    t.drawImage(q, 0, 0); t.globalCompositeOperation = 'source-atop'; t.fillStyle = 'rgba(255,255,255,.75)'; t.fillRect(0, 0, q.width, q.height); img = SCR_AK;
+  }
+  g.save(); g.translate(sx, sy - Math.round(z)); g.scale(face, 1);
+  if (alfa != null) g.globalAlpha = alfa;
+  g.drawImage(img, -Akira.AK.OX * k, -Akira.AK.OY * k, q.width / SC, q.height / SC);
+  g.restore();
+}
+function desenharRastros() {                                             // imagens-fantasma ao esquivar / correr
+  for (const r of rastros) { const [sx, sy] = iso(r.x, r.y); desenharAkira(sx, sy, r.an, r.f, r.face, 0, .38 * (1 - r.t / r.vida)); }
+}
+function desenharFx(g) {
+  for (const f of fx) {
+    const p = f.t / f.vida;
+    if (f.tipo === 'poeira') {
+      const r = f.r * (1 + p * 1.6), gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+      gr.addColorStop(0, 'rgba(235,222,185,' + (.55 * (1 - p)) + ')'); gr.addColorStop(1, 'rgba(235,222,185,0)');
+      g.fillStyle = gr; g.fillRect(f.x - r, f.y - r, r * 2, r * 2);
+    } else if (f.tipo === 'linha') {
+      g.globalAlpha = .75 * (1 - p); g.strokeStyle = '#fff'; g.lineWidth = .8; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x + f.dx * f.len * (1 + p), f.y + f.dy * f.len * (1 + p)); g.stroke(); g.globalAlpha = 1;
+    } else if (f.tipo === 'corte') {
+      const r = f.r * (.8 + p * .35), a0 = f.ang - 1.05, a1 = f.ang + 1.05, cx = f.x - Math.cos(f.ang) * r * .35, cy = f.y - Math.sin(f.ang) * r * .35;
+      g.globalAlpha = .85 * (1 - p); g.beginPath(); g.arc(cx, cy, r, a0, a1);
+      g.arc(cx - Math.cos(f.ang) * r * .18, cy - Math.sin(f.ang) * r * .18, r * .86, a1, a0, true); g.closePath();
+      g.fillStyle = '#ffffff'; g.fill(); g.strokeStyle = '#8fd8ff'; g.lineWidth = .7; g.stroke(); g.globalAlpha = 1;
+    } else if (f.tipo === 'impacto') {                                   // estrela de impacto estilo anime
+      const R2 = f.tam * (.5 + p * .9);
+      g.globalAlpha = 1 - p * .85;
+      g.fillStyle = '#fff6b8'; g.strokeStyle = '#ff9f2e'; g.lineWidth = .8; g.lineJoin = 'round';
+      g.beginPath();
+      for (let k = 0; k < 16; k++) { const a = f.rot + k * Math.PI / 8, rr = k % 2 ? R2 * .38 : R2 * (k % 4 ? .75 : 1.1); g.lineTo(f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr * .8); }
+      g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.arc(f.x, f.y, R2 * .24 * (1 - p), 0, 7); g.fillStyle = '#fff'; g.fill();
+      g.globalAlpha = 1;
+    }
+  }
+  if (jog.escudo > 0) {                                                  // brilho do escudo ao defender
+    const [sx, sy] = fxPos(20), a = jog.escudo / .25;
+    g.globalAlpha = Math.min(1, a) * .7; g.strokeStyle = '#bff0ff'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(sx + jog.face * 10, sy, 15, -1.2 + (jog.face < 0 ? Math.PI : 0), 1.2 + (jog.face < 0 ? Math.PI : 0)); g.stroke(); g.globalAlpha = 1;
   }
 }
-// Akira: cabelo castanho espetado, quimono branco; a faixa muda com a graduação
-const PAL_AKIRAS = {};
-const PAL_AKIRA = () => PAL_AKIRAS[estado.faixa] || (PAL_AKIRAS[estado.faixa] =
-  { gi: '#f4f1ea', som: '#a9aebd', pele: '#cf9168', cab: '#4a2c22', testa: null, faixa: FAIXAS[estado.faixa].cor, espeto: true, iris: '#7a4a2a' });
 
+
+/* =====================================================================
+   13b. AKIRA ANIME 2D (motor de desenho vetorial + sprite sheet em canvas)
+   ===================================================================== */
+const Akira = (() => {
+/* =====================================================================
+   AKIRA ANIME 2D — motor de desenho vetorial (contorno grosso, cel-shading,
+   olhos grandes, cabelo em mechas, quimono com dobras, faixa que balança).
+   Tudo é desenhado por código num canvas auxiliar e vira uma sprite sheet.
+   ===================================================================== */
+const D2R = Math.PI / 180;
+const AK = { UW: 200, UH: 190, OX: 100, OY: 165, K: .34 };      // quadro (unidades de desenho), pés em (OX,OY), K = escala no mundo
+// Cada animação: quantidade de quadros, fps, se repete. imp/seg = trecho do golpe (fração) onde o soco/chute acerta
+const AKIRA_ANIMATIONS = {
+  idle:       { frames: 6,  fps: 8,  loop: true },
+  walk:       { frames: 8,  fps: 12, loop: true },
+  run:        { frames: 8,  fps: 16, loop: true },
+  jump:       { frames: 6,  fps: 12, loop: false },
+  punch:      { frames: 6,  fps: 18, loop: false, imp: .4,  seg: .6 },
+  punchHeavy: { frames: 8,  fps: 14, loop: false, imp: .38, seg: .6 },
+  combo:      { frames: 12, fps: 18, loop: false },
+  elbow:      { frames: 6,  fps: 16, loop: false, imp: .4,  seg: .6 },
+  kick:       { frames: 8,  fps: 16, loop: false, imp: .42, seg: .62 },
+  highKick:   { frames: 8,  fps: 16, loop: false, imp: .45, seg: .65 },
+  spinKick:   { frames: 10, fps: 16, loop: false, imp: .5,  seg: .7 },
+  block:      { frames: 4,  fps: 10, loop: true },
+  dodge:      { frames: 6,  fps: 16, loop: false },
+  hit:        { frames: 4,  fps: 14, loop: false },
+  victory:    { frames: 8,  fps: 10, loop: true },
+  aura:       { frames: 6,  fps: 12, loop: false },
+  ko:         { frames: 6,  fps: 10, loop: false }
+};
+
+/* ---------- 1. POSE: ângulos absolutos (0 = pra baixo, 90 = pra frente, 180 = pra cima) ---------- */
+const POSE0 = {
+  dx: 0, lift: 0, free: 0, hy: 0, rot: 0, sx: 1, lean: 8, head: 0,
+  fT: 30, fS: 8, bT: -24, bS: -17, fFt: 82, bFt: 70,                 // coxa/canela da frente e de trás, pés
+  fU: 38, fF: 150, bU: 14, bF: 128, bTop: 0,                         // braços (u = braço, f = antebraço)
+  hair: 0, belt: 0, eye: 'open', mouth: 'closed', brow: 0, glow: 0
+};
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = { lin: t => t, smooth: t => t * t * (3 - 2 * t), out: t => 1 - (1 - t) * (1 - t) * (1 - t), in: t => t * t * t };
+const pz = o => Object.assign({}, POSE0, o);                         // pose = base + mudanças
+const kf = (t, o, e) => ({ t, p: pz(o), e: e || 'smooth' });
+
+/* Quadros-chave das animações de golpe (cada um muda braços, pernas, tronco, cabelo e roupa) */
+const KEYS = {
+  idle: [kf(0, { belt: 3 }), kf(.5, { fT: 33, fS: 14, bT: -27, bS: -22, lean: 11, fU: 42, fF: 154, bU: 18, hair: 5, belt: -4, head: 2 }), kf(1, { belt: 3 })],
+  jump: [
+    kf(0,   { fT: 55, fS: 40, bT: -45, bS: -50, lean: 24, fU: -30, fF: -40, bU: -40, bF: -50, hair: -4, mouth: 'closed' }),
+    kf(.2,  { lift: 8, fT: 10, fS: 5, bT: -8, bS: -6, lean: 4, fU: 150, fF: 170, bU: 140, bF: 165, hair: 12, brow: 1, mouth: 'open', fFt: 150, bFt: 150 }),
+    kf(.4,  { lift: 10, fT: 70, fS: 10, bT: -15, bS: -70, lean: 8, fU: 100, fF: 150, bU: 80, bF: 140, hair: 16, belt: 20 }),
+    kf(.6,  { lift: 10, fT: 78, fS: 5, bT: -25, bS: -80, lean: 6, fU: 110, fF: 160, bU: 60, bF: 120, hair: 22, belt: 30, brow: 1 }),
+    kf(.8,  { lift: 6, fT: 25, fS: 10, bT: -10, bS: -15, lean: 2, fU: 150, fF: 170, bU: 130, bF: 160, hair: 20, belt: -20, fFt: 130, bFt: 125 }),
+    kf(1,   { fT: 50, fS: 40, bT: -40, bS: -45, lean: 24, fU: -10, fF: 30, bU: -20, bF: 20, hair: -10, belt: 10 })],
+  punch: [
+    kf(0),
+    kf(.2,  { lean: 1, dx: -4, fU: 10, fF: 175, bU: 25, bF: 140, fT: 34, fS: 14, hair: -4, belt: 8, brow: 1 }),
+    kf(.4,  { lean: 20, dx: 7, fU: 100, fF: 86, bU: 30, bF: 160, fT: 42, fS: 28, bT: -36, bS: -32, hair: -14, belt: -28, brow: 1, mouth: 'shout' }, 'out'),
+    kf(.6,  { lean: 22, dx: 10, fU: 102, fF: 88, bU: 30, bF: 160, fT: 44, fS: 30, bT: -38, bS: -34, hair: -10, belt: -22, brow: 1, mouth: 'shout' }),
+    kf(.8,  { lean: 14, dx: 4, fU: 60, fF: 118, fT: 36, fS: 18, hair: 4, belt: 6, brow: 1 }),
+    kf(1)],
+  punchHeavy: [
+    kf(0),
+    kf(.15, { lean: -10, dx: -7, bArmTop: 1, bTop: 1, bU: -35, bF: 120, fU: 55, fF: 160, fT: 40, fS: 24, bT: -36, bS: -38, hair: 8, belt: 12, brow: 1 }),
+    kf(.38, { lean: 28, dx: 13, bTop: 1, bU: 84, bF: 88, fU: 18, fF: 165, fT: 48, fS: 34, bT: -48, bS: -12, hair: -20, belt: -38, brow: 1, mouth: 'shout', head: 4 }, 'out'),
+    kf(.58, { lean: 30, dx: 16, bTop: 1, bU: 88, bF: 89, fU: 18, fF: 165, fT: 50, fS: 36, bT: -50, bS: -10, hair: -14, belt: -30, brow: 1, mouth: 'shout', head: 4 }),
+    kf(.8,  { lean: 18, dx: 8, bTop: 1, bU: 60, bF: 112, fU: 35, fF: 160, fT: 38, fS: 20, hair: 4, belt: 6, brow: 1 }),
+    kf(1)],
+  elbow: [
+    kf(0),
+    kf(.25, { lean: 4, dx: -3, fU: -45, fF: 10, fT: 36, fS: 18, hair: 4, brow: 1 }),
+    kf(.45, { lean: 24, dx: 9, fU: 84, fF: 215, bU: 30, bF: 150, fT: 44, fS: 30, bT: -38, bS: -30, hair: -16, belt: -26, brow: 1, mouth: 'shout' }, 'out'),
+    kf(.62, { lean: 26, dx: 11, fU: 86, fF: 218, bU: 30, bF: 150, fT: 46, fS: 32, bT: -40, bS: -32, hair: -10, belt: -20, brow: 1, mouth: 'shout' }),
+    kf(.82, { lean: 14, dx: 5, fU: 60, fF: 150, fT: 36, hair: 4, brow: 1 }),
+    kf(1)],
+  kick: [
+    kf(0),
+    kf(.18, { lean: 0, fT: 80, fS: -5, bT: -6, bS: -4, fU: 20, fF: 140, bU: 35, bF: 150, hair: 6, belt: 8, brow: 1, fFt: 60 }),
+    kf(.42, { lean: -14, dx: 10, fT: 88, fS: 88, bT: -8, bS: -6, fU: 30, fF: 150, bU: -20, bF: 100, hair: -12, belt: -28, brow: 1, mouth: 'shout', fFt: 100, bFt: 80 }, 'out'),
+    kf(.62, { lean: -16, dx: 12, fT: 90, fS: 90, bT: -8, bS: -6, fU: 30, fF: 150, bU: -22, bF: 100, hair: -8, belt: -22, brow: 1, mouth: 'shout', fFt: 100, bFt: 80 }),
+    kf(.84, { lean: -4, dx: 4, fT: 78, fS: 0, bT: -10, bS: -6, fU: 25, fF: 145, bU: 30, bF: 150, hair: 4, brow: 1, fFt: 60 }),
+    kf(1)],
+  highKick: [
+    kf(0),
+    kf(.2,  { lean: 0, fT: 95, fS: 5, bT: -5, bS: -3, fU: 40, fF: 150, bU: 10, bF: 120, hair: 6, belt: 8, brow: 1, fFt: 60 }),
+    kf(.45, { lean: -30, dx: 6, fT: 138, fS: 150, bT: -4, bS: -2, fU: 70, fF: 100, bU: -50, bF: -20, hair: 14, belt: -34, brow: 1, mouth: 'shout', head: -3, fFt: 150, bFt: 85 }, 'out'),
+    kf(.66, { lean: -34, dx: 7, fT: 142, fS: 154, bT: -4, bS: -2, fU: 72, fF: 100, bU: -55, bF: -25, hair: 16, belt: -30, brow: 1, mouth: 'shout', head: -3, fFt: 150, bFt: 85 }),
+    kf(.86, { lean: -8, dx: 2, fT: 95, fS: 15, bT: -8, bS: -5, fU: 40, fF: 150, bU: 12, bF: 120, hair: 4, brow: 1, fFt: 60 }),
+    kf(1)],
+  spinKick: [
+    kf(0),
+    kf(.15, { lean: 4, dx: -3, sx: .85, fT: 36, fS: 18, bT: -28, bS: -28, fU: 20, fF: 130, bU: 50, bF: 150, hair: 6, brow: 1 }),
+    kf(.3,  { lean: 6, sx: .22, fT: 40, fS: 20, bT: -20, bS: -30, fU: 60, fF: 110, bU: 80, bF: 120, hair: 18, belt: 30, brow: 1 }),
+    kf(.5,  { lean: -18, dx: 4, sx: -1, fT: 98, fS: 100, bT: -6, bS: -4, fU: 50, fF: 110, bU: -40, bF: 20, hair: -20, belt: -38, brow: 1, mouth: 'shout', fFt: 100, bFt: 80 }, 'out'),
+    kf(.7,  { lean: -20, dx: 4, sx: -1, fT: 100, fS: 102, bT: -6, bS: -4, fU: 50, fF: 110, bU: -40, bF: 20, hair: -14, belt: -30, brow: 1, mouth: 'shout', fFt: 100, bFt: 80 }),
+    kf(.85, { lean: 4, sx: .3, fT: 50, fS: 25, bT: -25, bS: -25, fU: 40, fF: 140, bU: 40, bF: 140, hair: 16, belt: 20, brow: 1 }),
+    kf(1)],
+  block: [
+    kf(0,  { lean: -4, dx: -3, fT: 36, fS: 22, bT: -30, bS: -26, fU: 52, fF: 178, bU: 62, bF: 186, bTop: 1, eye: 'angry', brow: 1, belt: 4, glow: 1 }),
+    kf(.33, { lean: -6, dx: -4, fT: 38, fS: 24, bT: -31, bS: -27, fU: 54, fF: 180, bU: 64, bF: 188, bTop: 1, eye: 'angry', brow: 1, belt: -4, glow: 1 }),
+    kf(.66, { lean: -4, dx: -3, fT: 36, fS: 22, bT: -30, bS: -26, fU: 52, fF: 176, bU: 62, bF: 184, bTop: 1, eye: 'angry', brow: 1, belt: 6, glow: 1 }),
+    kf(1,  { lean: -4, dx: -3, fT: 36, fS: 22, bT: -30, bS: -26, fU: 52, fF: 178, bU: 62, bF: 186, bTop: 1, eye: 'angry', brow: 1, belt: 4, glow: 1 })],
+  dodge: [
+    kf(0),
+    kf(.2,  { lean: -8, dx: -8, fT: 42, fS: 32, bT: -30, bS: -36, fU: 10, fF: 60, bU: -20, bF: 40, hair: 10, belt: 12, brow: 1 }),
+    kf(.5,  { lean: -38, dx: -22, lift: 6, fT: 55, fS: 15, bT: 25, bS: -45, fU: -30, fF: 30, bU: -50, bF: -10, hair: 26, belt: 30, head: -6, eye: 'angry', brow: 1 }),
+    kf(.75, { lean: -18, dx: -26, fT: 48, fS: 28, bT: -12, bS: -40, fU: 5, fF: 70, bU: -10, bF: 80, hair: 14, belt: 10, brow: 1 }),
+    kf(1,   { lean: 6, dx: -20, fT: 40, fS: 25, bT: -28, bS: -30, fU: 40, fF: 150, bU: 15, bF: 128, hair: -4, brow: 1 })],
+  hit: [
+    kf(0,   { lean: -22, dx: -8, head: -14, fT: 22, fS: 6, bT: -34, bS: -30, fU: -35, fF: 40, bU: -50, bF: 30, hair: 20, belt: 26, eye: 'hurt', mouth: 'shout', brow: 2 }, 'out'),
+    kf(.33, { lean: -28, dx: -13, head: -18, fT: 20, fS: 4, bT: -38, bS: -34, fU: -45, fF: 30, bU: -60, bF: 25, hair: 26, belt: 32, eye: 'hurt', mouth: 'shout', brow: 2 }),
+    kf(.66, { lean: -18, dx: -10, head: -10, fT: 26, fS: 10, bT: -32, bS: -26, fU: -10, fF: 80, bU: -25, bF: 60, hair: 10, belt: 14, eye: 'hurt', mouth: 'open', brow: 2 }),
+    kf(1,   { lean: -6, dx: -5, head: -4, fT: 32, fS: 14, bT: -26, bS: -20, fU: 30, fF: 130, bU: 10, bF: 110, hair: 2, belt: 4, eye: 'hurt', mouth: 'closed', brow: 1 })],
+  victory: [
+    kf(0,   { lean: 0, fT: 38, fS: 20, bT: -32, bS: -26, fU: 20, fF: 120, bU: 30, bF: 100, eye: 'happy', mouth: 'smile', belt: 6 }),
+    kf(.25, { lift: 10, lean: -2, fT: 14, fS: 4, bT: -12, bS: -6, fU: 172, fF: 178, bU: 20, bF: 100, hair: 18, eye: 'happy', mouth: 'smile', belt: 24, fFt: 130, bFt: 125 }),
+    kf(.5,  { lift: 3, lean: -4, fT: 22, fS: 8, bT: -18, bS: -12, fU: 176, fF: 178, bU: 24, bF: 104, hair: 6, eye: 'happy', mouth: 'smile', belt: 4 }),
+    kf(.75, { lift: 6, lean: -2, fT: 18, fS: 6, bT: -15, bS: -9, fU: 174, fF: 178, bU: 22, bF: 102, hair: 12, eye: 'happy', mouth: 'smile', belt: 14 }),
+    kf(1,   { lean: 0, fT: 38, fS: 20, bT: -32, bS: -26, fU: 20, fF: 120, bU: 30, bF: 100, eye: 'happy', mouth: 'smile', belt: 6 })],
+  aura: [
+    kf(0,   { lean: 4, fT: 38, fS: 22, bT: -32, bS: -28, fU: -30, fF: -50, bU: -35, bF: -55, bTop: 1, hair: 6, belt: 6, brow: 1 }),
+    kf(.2,  { lean: 12, fT: 44, fS: 30, bT: -38, bS: -36, fU: -50, fF: -70, bU: -55, bF: -75, bTop: 1, hair: 18, belt: 20, brow: 1, eye: 'angry', glow: 1 }),
+    kf(.4,  { lean: 16, fT: 46, fS: 32, bT: -40, bS: -38, fU: -55, fF: -75, bU: -60, bF: -80, bTop: 1, hair: 26, belt: 30, brow: 1, eye: 'angry', mouth: 'shout', glow: 1 }),
+    kf(.6,  { lean: 26, dx: 10, fT: 52, fS: 36, bT: -48, bS: -14, fU: 88, fF: 90, bU: 86, bF: 88, bTop: 1, hair: -26, belt: -40, brow: 1, eye: 'angry', mouth: 'shout', glow: 1 }, 'out'),
+    kf(.8,  { lean: 24, dx: 11, fT: 52, fS: 36, bT: -48, bS: -14, fU: 90, fF: 90, bU: 88, bF: 90, bTop: 1, hair: -20, belt: -30, brow: 1, mouth: 'shout', glow: 1 }),
+    kf(1,   { lean: 14, dx: 5, fT: 40, fS: 22, fU: 60, fF: 120, bU: 50, bF: 130, bTop: 1, hair: 4, brow: 1 })],
+  ko: [
+    kf(0,   { lean: -22, dx: -8, head: -14, fU: -35, fF: 40, bU: -50, bF: 30, eye: 'hurt', mouth: 'shout', brow: 2, hair: 20 }),
+    kf(.25, { free: 1, hy: 44, rot: 28, lean: -18, dx: -6, fT: 20, fS: 40, bT: -10, bS: 30, fU: -50, fF: -10, bU: -70, bF: -30, head: -14, eye: 'hurt', mouth: 'shout', brow: 2, hair: 24, belt: 30 }, 'out'),
+    kf(.5,  { free: 1, hy: 28, rot: 62, lean: -10, dx: -8, fT: 30, fS: 50, bT: 0, bS: 20, fU: -60, fF: -10, bU: -80, bF: -40, head: -10, eye: 'hurt', mouth: 'open', brow: 2, hair: 18, belt: 20 }),
+    kf(.75, { free: 1, hy: 14, rot: 88, lean: 0, dx: -9, fT: 12, fS: 24, bT: -2, bS: 6, fU: 40, fF: 40, bU: -40, bF: -50, head: 0, eye: 'closed', mouth: 'open', brow: 2, hair: 4, belt: 6 }, 'out'),
+    kf(1,   { free: 1, hy: 11, rot: 90, lean: 0, dx: -10, fT: 8, fS: 14, bT: -6, bS: 4, fU: 20, fF: 30, bU: -50, bF: -60, head: 2, eye: 'closed', mouth: 'open', brow: 2, hair: 0, belt: 0 })]
+};
+// combo: rajada de 3 golpes (jab, cruzado, gancho) em 12 quadros
+KEYS.combo = [
+  kf(0),
+  kf(.08, { lean: 0, dx: -3, fU: 20, fF: 170, fT: 34, fS: 14, brow: 1, hair: -3 }),
+  kf(.16, { lean: 18, dx: 6, fU: 100, fF: 86, bU: 30, bF: 160, fT: 42, fS: 28, bT: -36, bS: -32, hair: -12, belt: -26, brow: 1, mouth: 'shout' }, 'out'),
+  kf(.3,  { lean: 6, dx: 3, fU: 40, fF: 140, bU: -20, bF: 150, bTop: 1, fT: 38, fS: 24, bT: -34, bS: -30, hair: 6, belt: 4, brow: 1 }),
+  kf(.4,  { lean: 26, dx: 12, bTop: 1, bU: 86, bF: 88, fU: 18, fF: 165, fT: 48, fS: 34, bT: -48, bS: -12, hair: -20, belt: -36, brow: 1, mouth: 'shout' }, 'out'),
+  kf(.55, { lean: 8, dx: 5, bTop: 0, fU: 30, fF: 120, bU: 5, bF: 130, fT: 40, fS: 26, bT: -34, bS: -26, hair: 6, brow: 1 }),
+  kf(.68, { lean: 8, dx: 4, fU: 20, fF: -10, fT: 44, fS: 32, bT: -30, bS: -36, hair: 4, belt: 10, brow: 1 }),
+  kf(.82, { lean: 22, dx: 12, fU: 120, fF: 175, bU: 30, bF: 150, fT: 50, fS: 38, bT: -44, bS: -20, hair: -22, belt: -34, brow: 1, mouth: 'shout', head: -4 }, 'out'),
+  kf(1,   { lean: 10, dx: 6, fU: 70, fF: 120, fT: 38, fS: 20, hair: 4, brow: 1 })
+];
+
+/* Caminhada e corrida: ciclo calculado (pernas e braços em oposição) */
+function cicloAndar(p, corre) {
+  const ph = p * Math.PI * 2, A = corre ? 50 : 30, fl = corre ? 78 : 42;
+  const perna = o => { const t = ph + o; const th = A * Math.sin(t); const flex = fl * Math.max(0, Math.cos(t)) * (corre ? 1 : .9) + (corre ? 12 : 4); return [th, th - flex]; };
+  const [fT, fS] = perna(0), [bT, bS] = perna(Math.PI);
+  const sw = corre ? 55 : 28, cot = corre ? 80 : 34;
+  const fU = (corre ? 20 : 12) - sw * Math.sin(ph + Math.PI) , bU = (corre ? 20 : 12) - sw * Math.sin(ph);
+  return pz({
+    lean: corre ? 22 : 7, fT, fS, bT, bS, fFt: 82 + Math.max(0, Math.cos(ph)) * 30 , bFt: 82 + Math.max(0, -Math.cos(ph)) * 30,
+    fU, fF: fU + cot, bU, bF: bU + cot, head: corre ? -6 : 0,
+    hair: corre ? 14 + 6 * Math.sin(ph * 2) : 4 * Math.sin(ph * 2), belt: corre ? -28 + 8 * Math.sin(ph * 2) : -3 + 5 * Math.sin(ph * 2),
+    brow: corre ? 1 : 0, mouth: corre ? 'open' : 'closed', lift: 0
+  });
+}
+
+/* Amostra uma animação no ponto p (0..1) interpolando os quadros-chave */
+function amostrar(nome, p) {
+  if (nome === 'walk') return cicloAndar(p, false);
+  if (nome === 'run') return cicloAndar(p, true);
+  const ks = KEYS[nome];
+  p = Math.max(0, Math.min(1, p));
+  let i = 0; while (i < ks.length - 2 && p > ks[i + 1].t) i++;
+  const a = ks[i], b = ks[i + 1], u = (b.t === a.t) ? 1 : Math.max(0, Math.min(1, (p - a.t) / (b.t - a.t))), e = ease[b.e](u);
+  const r = {};
+  for (const k in a.p) r[k] = (typeof a.p[k] === 'number') ? lerp(a.p[k], b.p[k], e) : (u < .5 ? a.p[k] : b.p[k]);
+  return r;
+}
+function posePorQuadro(nome, i) {
+  const an = AKIRA_ANIMATIONS[nome];
+  return amostrar(nome, an.loop ? i / an.frames : i / (an.frames - 1));
+}
+
+/* ---------- 2. ESQUELETO: de ângulos para posições das juntas ---------- */
+const MED = { th: 27, sh: 26, tor: 33, up: 19, fo: 18, cab: 15 };
+function juntas(P) {
+  const d = a => [Math.sin(a * D2R), Math.cos(a * D2R)];
+  const perna = (hx, T, S) => { const a = d(T), b = d(S); const k = [hx + a[0] * MED.th, a[1] * MED.th]; return { k, an: [k[0] + b[0] * MED.sh, k[1] + b[1] * MED.sh], q: [hx, 0] }; };
+  const F = perna(2, P.fT, P.fS), B = perna(-3, P.bT, P.bS);
+  const baixo = Math.max(F.an[1], B.an[1]) + 5;
+  const hipY = P.free ? -P.hy : -baixo - P.lift, H = [P.dx, hipY];
+  const mv = (o, h) => [o[0] + h[0], o[1] + h[1]];
+  const fk = mv(F.k, H), fa = mv(F.an, H), bk = mv(B.k, H), ba = mv(B.an, H);
+  fk[0] += 0; const fq = mv(F.q, H), bq = mv(B.q, H);
+  const l = P.lean * D2R, u = [Math.sin(l), -Math.cos(l)], f = [Math.cos(l), Math.sin(l)];
+  const T = (a, b) => [H[0] + u[0] * a + f[0] * b, H[1] + u[1] * a + f[1] * b];
+  const S = T(MED.tor - 3, 1), Sb = T(MED.tor - 3, -3);
+  const ha = (P.lean * .4 + P.head);
+  const hd = [Math.sin(ha * D2R), -Math.cos(ha * D2R)];
+  const N = T(MED.tor, 1), C = [N[0] + hd[0] * MED.cab, N[1] + hd[1] * MED.cab];
+  const braco = (s, U, Fo) => { const a = d(U), b = d(Fo); const e = [s[0] + a[0] * MED.up, s[1] + a[1] * MED.up]; return { e, h: [e[0] + b[0] * MED.fo, e[1] + b[1] * MED.fo] }; };
+  return { H, T, S, Sb, N, C, ha, fq, bq, fk, fa, bk, ba, fa_: braco(S, P.fU, P.fF), ba_: braco(Sb, P.bU, P.bF), d, u, f, l };
+}
+
+/* ---------- 3. DESENHO ---------- */
+const OUT = '#1a1230';
+const COR = { pele: '#f6c19a', peleS: '#d98d6c', gi: '#fdfbf6', giS: '#aeb8d8', giSS: '#7e8cb8', cab: '#222850', cabS: '#10142e', cabL: '#3f58b0', cabL2: '#8fa8f0' };
+const LUZ = [.5, -.85];                                         // direção da luz (frente e de cima)
+function esc(hex, f) { const n = parseInt(hex.slice(1), 16); const c = k => Math.max(0, Math.min(255, Math.round(((n >> k) & 255) * f))); return 'rgb(' + c(16) + ',' + c(8) + ',' + c(0) + ')'; }
+
+function traco(g, ax, ay, bx, by, w, cor) { g.strokeStyle = cor; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
+// Membro com contorno + sombra + luz (cel-shading)
+function membro(g, ax, ay, bx, by, w, base, sombra) {
+  traco(g, ax, ay, bx, by, w + 3.6, OUT);
+  traco(g, ax, ay, bx, by, w, sombra);
+  const o = w * .11;
+  traco(g, ax + LUZ[0] * o * 1.2, ay + LUZ[1] * o, bx + LUZ[0] * o * 1.2, by + LUZ[1] * o, w * .66, base);
+}
+// Forma qualquer com contorno + sombra recortada
+function forma(g, caminho, base, sombra, desl, linha) {
+  g.save(); g.beginPath(); caminho(g); g.clip();
+  g.fillStyle = sombra; g.fillRect(-400, -400, 800, 800);
+  g.translate(LUZ[0] * desl, LUZ[1] * desl); g.beginPath(); caminho(g); g.fillStyle = base; g.fill(); g.restore();
+  g.beginPath(); caminho(g); g.lineJoin = 'round'; g.lineWidth = linha || 3; g.strokeStyle = OUT; g.stroke();
+}
+const poli = (pts, fech) => g => { g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); if (fech !== false) g.closePath(); };
+
+function mao(g, h, ang) {                                      // punho fechado
+  forma(g, c => c.arc(h[0], h[1], 6.4, 0, 7), COR.pele, COR.peleS, 2.2, 2.8);
+  const c = Math.cos(ang * D2R), s = Math.sin(ang * D2R);
+  g.lineWidth = 1.3; g.strokeStyle = '#9a5a44'; g.lineCap = 'round';
+  for (const k of [-2.2, 0.4, 2.8]) { g.beginPath(); g.moveTo(h[0] + s * 2.5 + c * k, h[1] + c * 2.5 - s * k); g.lineTo(h[0] + s * 5.6 + c * k, h[1] + c * 5.6 - s * k); g.stroke(); }
+}
+function braco(g, S, J, U, F, ang) {
+  const { e, h } = J;
+  membro(g, e[0], e[1], h[0], h[1], 9, COR.pele, COR.peleS);                         // antebraço (pele)
+  membro(g, S[0], S[1], e[0], e[1], 13.5, COR.gi, COR.giS);                               // manga do quimono
+  const a = Math.atan2(e[1] - S[1], e[0] - S[0]);
+  g.save(); g.translate(e[0], e[1]); g.rotate(a);                                        // punho da manga
+  g.beginPath(); g.moveTo(0, -8.5); g.lineTo(0, 8.5); g.lineWidth = 1.6; g.strokeStyle = COR.giSS; g.stroke(); g.restore();
+  mao(g, h, F);
+}
+function perna(g, q, k, a, P, pe, fFt) {
+  membro(g, q[0], q[1], k[0], k[1], 17.5, COR.gi, COR.giS);                               // coxa (calça larga)
+  // pé descalço
+  const fd = [Math.sin(fFt * D2R), Math.cos(fFt * D2R)];
+  const tx = a[0] + fd[0] * 13, ty = a[1] + fd[1] * 13 + 1;
+  membro(g, a[0], a[1] + 2, tx, ty, 8, COR.pele, COR.peleS);
+  membro(g, k[0], k[1], a[0], a[1], 14, COR.gi, COR.giS);                             // canela
+  g.lineWidth = 1.5; g.strokeStyle = COR.giSS; g.lineCap = 'round';                      // dobras da calça
+  const m = [(q[0] + k[0]) / 2, (q[1] + k[1]) / 2];
+  g.beginPath(); g.moveTo(m[0] - 3, m[1] - 2); g.lineTo(m[0] + 2, m[1] + 5); g.stroke();
+  g.beginPath(); g.moveTo(k[0] - 5, k[1] + 3); g.lineTo(k[0] + 4, k[1] + 5); g.stroke();
+}
+function tiraFaixa(g, J, P, cor) {                              // pontas da faixa balançando
+  const nó = J.T(7, 7);
+  const base = [-14 + P.belt * .9, -42 + P.belt * 1.3];
+  [[base[0], 20, 4.6], [base[1], 17, 4.2]].forEach(([ang, len, w], i) => {
+    const a = J.d(ang), b = J.d(ang - P.belt * .5 - (i ? 8 : -4));
+    const p1 = [nó[0] + a[0] * len * .55, nó[1] + a[1] * len * .55], p2 = [p1[0] + b[0] * len * .55, p1[1] + b[1] * len * .55];
+    traco(g, nó[0], nó[1], p1[0], p1[1], w + 3, OUT); traco(g, p1[0], p1[1], p2[0], p2[1], w * .8 + 3, OUT);
+    traco(g, nó[0], nó[1], p1[0], p1[1], w, cor); traco(g, p1[0], p1[1], p2[0], p2[1], w * .8, esc(cor, .8));
+  });
+}
+function tronco(g, J, P, faixa) {
+  const T = J.T;
+  const cam = c => {
+    let p = T(0, -9); c.moveTo(p[0], p[1]);
+    const q = (a1, b1, a2, b2) => { const x = T(a1, b1), y = T(a2, b2); c.quadraticCurveTo(x[0], x[1], y[0], y[1]); };
+    q(9, -11, 18, -11); q(28, -12.5, 32.5, -9); q(36, -3, 35, 3); q(34, 9, 27, 11.5); q(19, 13, 11, 10); q(5, 11, 0, 9.5);
+    c.closePath();
+  };
+  forma(g, cam, COR.gi, COR.giS, 4, 3.2);
+  g.save(); g.beginPath(); cam(g); g.clip();
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const L = (arr, w, cor) => { g.beginPath(); arr.forEach((p, i) => { const t = T(p[0], p[1]); i ? g.lineTo(t[0], t[1]) : g.moveTo(t[0], t[1]); }); g.lineWidth = w; g.strokeStyle = cor; g.stroke(); };
+  L([[34, 4], [24, 1], [10, -5]], 4.4, COR.giS);                // gola em V (um lado do quimono)
+  L([[34, -4], [24, 2], [12, 8]], 3.6, '#e9eefb');
+  L([[34, 4], [24, 1], [10, -5]], 1.6, OUT);                    // linha da gola
+  L([[34, -4], [25, 2], [13, 8]], 1.3, COR.giSS);
+  L([[20, -10], [17, -3], [20, 4]], 1.4, COR.giSS);             // dobras
+  L([[27, -8], [24, -3]], 1.3, COR.giSS);
+  L([[13, 7], [16, 3]], 1.3, COR.giSS);
+  g.restore();
+  // faixa (muda de cor com a graduação)
+  const fx = c => { const pts = [T(3.5, -10.6), T(11.5, -10.4), T(11.5, 10.6), T(3.5, 10.6)]; poli(pts)(c); };
+  forma(g, fx, faixa, esc(faixa, .72), 2.2, 2.6);
+  const kn = T(7.5, 7.5);                                        // nó
+  g.save(); g.translate(kn[0], kn[1]); g.rotate(J.l);
+  forma(g, c => { c.rect(-4, -4.5, 8, 9); }, faixa, esc(faixa, .7), 1.6, 2.4); g.restore();
+}
+function cabeca(g, J, P, faixa) {
+  const C = J.C;
+  g.save(); g.translate(C[0], C[1]); g.rotate(J.ha * D2R); g.scale(1.1, 1.1);
+  const hs = P.hair;
+  // balança as mechas: gira a ponta em torno da raiz
+  const bal = (r, t, f) => { const a = hs * f * D2R, dx = t[0] - r[0], dy = t[1] - r[1]; return [r[0] + dx * Math.cos(a) + dy * Math.sin(a), r[1] - dx * Math.sin(a) + dy * Math.cos(a)]; };
+  const mecha = (b1, b2, t, curva, cor, f) => {
+    const ra = [(b1[0] + b2[0]) / 2, (b1[1] + b2[1]) / 2], tp = bal(ra, t, f == null ? 1 : f);
+    const dx = tp[0] - ra[0], dy = tp[1] - ra[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+    const c1 = [(b1[0] + tp[0]) / 2 + nx * curva, (b1[1] + tp[1]) / 2 + ny * curva], c2 = [(b2[0] + tp[0]) / 2 + nx * curva * .5, (b2[1] + tp[1]) / 2 + ny * curva * .5];
+    const cam = c => { c.moveTo(b1[0], b1[1]); c.quadraticCurveTo(c1[0], c1[1], tp[0], tp[1]); c.quadraticCurveTo(c2[0], c2[1], b2[0], b2[1]); c.closePath(); };
+    forma(g, cam, cor || COR.cab, COR.cabS, 2.4, 2.6);
+    g.beginPath(); g.moveTo(ra[0], ra[1]); g.quadraticCurveTo((ra[0] + tp[0]) / 2 + nx * curva * .6, (ra[1] + tp[1]) / 2 + ny * curva * .6, ra[0] + dx * .86, ra[1] + dy * .86);
+    g.lineWidth = 1.3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+  };
+  // cabelo de trás (atrás do rosto)
+  mecha([-11, -12], [-4, -16], [-36, -22], -6);
+  mecha([-14, -4], [-12, -12], [-37, -6], -5);
+  mecha([-13, 4], [-14, -4], [-31, 11], -4);
+  mecha([-6, -16], [2, -17], [-17, -37], 4);
+  mecha([1, -17], [9, -14], [7, -39], 5, null, .6);
+  forma(g, c => { c.moveTo(-12, -14); c.bezierCurveTo(-24, -10, -22, 6, -10, 11); c.lineTo(-4, 6); c.lineTo(0, -14); c.closePath(); }, COR.cab, COR.cabS, 2.4, 2.6);
+  // pescoço
+  traco(g, -1, 8, -1, 18, 8, OUT); traco(g, -1, 8, -1, 18, 5.4, COR.peleS);
+  // orelha
+  forma(g, c => c.ellipse(-6, 3, 3.2, 4.2, 0, 0, 7), COR.pele, COR.peleS, 1, 2);
+  // rosto
+  const rosto = c => {
+    c.moveTo(-13, -2); c.bezierCurveTo(-14, -14, -2, -17, 7, -13); c.bezierCurveTo(13, -10, 14.5, -1, 12, 5);
+    c.bezierCurveTo(10.5, 10.5, 6, 15, 1.5, 14.5); c.bezierCurveTo(-6, 14, -12, 9, -13, -2); c.closePath();
+  };
+  forma(g, rosto, COR.pele, COR.peleS, 3, 3);
+  // olho
+  const ox = 5.5, oy = 2.2;
+  const eye = P.eye;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  if (eye === 'closed' || eye === 'happy') {
+    g.beginPath(); if (eye === 'happy') { g.moveTo(ox - 4.5, oy + 1.5); g.quadraticCurveTo(ox, oy - 5, ox + 5, oy + 1.5); } else { g.moveTo(ox - 4.5, oy + 0.5); g.quadraticCurveTo(ox, oy + 3.5, ox + 5, oy + 0.5); }
+    g.lineWidth = 2.2; g.strokeStyle = OUT; g.stroke();
+  } else if (eye === 'hurt') {
+    g.lineWidth = 2.2; g.strokeStyle = OUT; g.beginPath(); g.moveTo(ox - 4, oy - 3); g.lineTo(ox + 3, oy); g.lineTo(ox - 4, oy + 3.5); g.stroke();
+  } else {
+    const ang = eye === 'angry' ? 1 : 0;
+    const esc2 = c => { c.moveTo(ox - 5.2, oy - 1 + ang); c.quadraticCurveTo(ox, oy - 6.4 + ang * 1.5, ox + 5.4, oy - 1.4); c.quadraticCurveTo(ox + 4.5, oy + 4.8, ox, oy + 5.2); c.quadraticCurveTo(ox - 4.5, oy + 4.8, ox - 5.2, oy - 1 + ang); c.closePath(); };
+    g.beginPath(); esc2(g); g.fillStyle = '#ffffff'; g.fill();
+    g.save(); g.beginPath(); esc2(g); g.clip();
+    const gr = g.createLinearGradient(0, oy - 6, 0, oy + 6); gr.addColorStop(0, '#3a1d0e'); gr.addColorStop(.45, '#b4561c'); gr.addColorStop(1, '#ffc15a');
+    g.beginPath(); g.ellipse(ox + .8, oy + .4, 3.9, 5, 0, 0, 7); g.fillStyle = gr; g.fill();
+    g.beginPath(); g.ellipse(ox + 1.1, oy + .2, 1.9, 2.6, 0, 0, 7); g.fillStyle = '#1a0c10'; g.fill();
+    g.restore();
+    g.beginPath(); g.arc(ox + 2.4, oy - 1.9, 1.5, 0, 7); g.fillStyle = '#fff'; g.fill();
+    g.beginPath(); g.arc(ox - .6, oy + 2.4, .8, 0, 7); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
+    g.beginPath(); g.moveTo(ox - 5.8, oy - .2 + ang); g.quadraticCurveTo(ox, oy - 7 + ang * 1.5, ox + 6, oy - 1.6);   // pálpebra grossa
+    g.lineWidth = 2.5; g.strokeStyle = OUT; g.stroke();
+    g.beginPath(); g.moveTo(ox + 5.4, oy - 1.4); g.lineTo(ox + 7.6, oy - 3.4); g.lineWidth = 1.8; g.stroke();
+  }
+  // nariz e boca
+  g.lineWidth = 1.4; g.strokeStyle = '#a45f48'; g.beginPath(); g.moveTo(12.4, 4.6); g.lineTo(13.6, 6.6); g.lineTo(12, 7); g.stroke();
+  const m = P.mouth;
+  if (m === 'shout' || m === 'open') {
+    g.beginPath(); g.ellipse(7.5, 10.6, m === 'shout' ? 3.2 : 2.2, m === 'shout' ? 3.2 : 2.4, 0, 0, 7); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = OUT; g.stroke();
+    g.beginPath(); g.ellipse(7.8, 11.9, 1.8, 1.1, 0, 0, 7); g.fillStyle = '#e8737f'; g.fill();
+  } else if (m === 'smile') {
+    g.beginPath(); g.moveTo(3.5, 9.5); g.quadraticCurveTo(7.5, 14.6, 11, 9.4); g.closePath(); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = OUT; g.stroke();
+  } else { g.beginPath(); g.moveTo(5, 11); g.quadraticCurveTo(7.6, 12.2, 10, 10.8); g.lineWidth = 1.6; g.strokeStyle = '#8a4a3c'; g.stroke(); }
+  // franja (cabelo da frente, cobre a testa)
+  const fr = P.brow === 2 ? 0 : 0;
+  const franja = c => {
+    c.moveTo(-14.5, -3); c.bezierCurveTo(-16, -18, -3, -21, 6, -18.5); c.bezierCurveTo(12, -17, 15, -12, 14, -6);
+    const t1 = bal([12.5, -9], [16.5, -1.4], 1), t2 = bal([7, -10], [9.5, -2.2], 1), t3 = bal([1, -11], [1, -3], 1);
+    c.quadraticCurveTo(15.8, -7, t1[0], t1[1]); c.quadraticCurveTo(12.5, -8, 10.5, -9.5);
+    c.quadraticCurveTo(10.5, -6, t2[0], t2[1]); c.quadraticCurveTo(4.5, -8, 3, -10.5);
+    c.quadraticCurveTo(2.6, -6, t3[0], t3[1]); c.quadraticCurveTo(-3, -8, -5, -11);
+    const t4 = bal([-9, -4], [-9.5, 6], .8);
+    c.quadraticCurveTo(-9, -9, t4[0], t4[1]); c.quadraticCurveTo(-12, -2, -14.5, -3); c.closePath();
+  };
+  forma(g, franja, COR.cab, COR.cabS, 3, 2.8);
+  // brilho do cabelo (faixa clara curva) e mechas internas
+  g.save(); g.beginPath(); franja(g); g.clip();
+  g.beginPath(); g.moveTo(-10, -13); g.quadraticCurveTo(0, -20, 11, -13); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+  g.beginPath(); g.moveTo(-5, -15.5); g.quadraticCurveTo(2, -18.5, 8, -15); g.lineWidth = 1.4; g.strokeStyle = COR.cabL2; g.stroke();
+  g.lineWidth = 1.1; g.strokeStyle = COR.cabL;
+  for (const [a, b, c2, d2] of [[11, -9, 13, -5], [6, -10, 7.5, -5], [0, -11, 0.5, -6]]) { g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
+  g.restore();
+  // sobrancelha (por cima do cabelo, estilo anime)
+  const br = P.eye === 'angry' || P.brow === 1 ? 1.8 : P.brow === 2 ? -1.6 : 0;
+  g.beginPath(); g.moveTo(1.2, -4.2 + br * .4); g.lineTo(10.5, -5.2 - br); g.lineWidth = 2.3; g.strokeStyle = OUT; g.lineCap = 'round'; g.stroke();
+  g.restore();
+}
+function aura(g, J, P) {                                         // brilho azul de energia atrás do corpo
+  const H = J.T(18, 0);
+  const gr = g.createRadialGradient(H[0], H[1], 6, H[0], H[1], 62);
+  gr.addColorStop(0, 'rgba(140,220,255,.5)'); gr.addColorStop(1, 'rgba(120,200,255,0)');
+  g.fillStyle = gr; g.globalAlpha = P.glow; g.fillRect(H[0] - 70, H[1] - 70, 140, 140); g.globalAlpha = 1;
+}
+
+/* Desenha o Akira inteiro virado pra direita; a origem (0,0) é o chão entre os pés */
+function desenhar(g, P, faixa) {
+  const J = juntas(P);
+  g.save();
+  if (P.sx !== 1) { g.translate(J.H[0], 0); g.scale(P.sx, 1); g.translate(-J.H[0], 0); }
+  if (P.rot) { g.translate(J.H[0], J.H[1]); g.rotate(-P.rot * D2R); g.translate(-J.H[0], -J.H[1]); }
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  if (P.glow > 0) aura(g, J, P);
+  if (!P.bTop) braco(g, J.Sb, J.ba_, P.bU, P.bF);
+  perna(g, J.bq, J.bk, J.ba, P, 0, P.bFt);
+  tiraFaixa(g, J, P, faixa);
+  tronco(g, J, P, faixa);
+  perna(g, J.fq, J.fk, J.fa, P, 1, P.fFt);
+  if (P.bTop) braco(g, J.Sb, J.ba_, P.bU, P.bF);
+  cabeca(g, J, P, faixa);
+  braco(g, J.S, J.fa_, P.fU, P.fF);
+  g.restore();
+}
+
+/* ---------- 4. SPRITE SHEET (quadros guardados em canvas auxiliar) ---------- */
+const cacheQ = {};
+let externo = null;                                              // sprites PNG carregados de fora (opcional)
+function novoCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+// Devolve o quadro pronto (canvas) em "sc" pixels por unidade de desenho
+function quadro(nome, i, sc, faixa) {
+  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + faixa + '|' + (externo ? 'E' : 'P');
+  if (cacheQ[key]) return cacheQ[key];
+  const c = novoCanvas(Math.ceil(AK.UW * sc), Math.ceil(AK.UH * sc)), g = c.getContext('2d');
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  if (externo && externo.anims[nome]) {
+    const m = externo.meta, a = externo.anims[nome], fw = m.frameW, fh = m.frameH;
+    const ex = (i % a.frames) * fw, ey = a.row * fh;
+    g.drawImage(externo.img, ex, ey, fw, fh, 0, 0, c.width, c.height);
+  } else {
+    g.scale(sc, sc); g.translate(AK.OX, AK.OY);
+    desenhar(g, posePorQuadro(nome, i), faixa);
+  }
+  return (cacheQ[key] = c);
+}
+function limparCache() { for (const k in cacheQ) delete cacheQ[k]; }
+// Monta a sprite sheet inteira (uma linha por animação) + JSON
+function montarFolha(sc, faixa) {
+  const nomes = Object.keys(AKIRA_ANIMATIONS), maxF = Math.max(...nomes.map(n => AKIRA_ANIMATIONS[n].frames));
+  const fw = Math.round(AK.UW * sc), fh = Math.round(AK.UH * sc);
+  const folha = novoCanvas(fw * maxF, fh * nomes.length), g = folha.getContext('2d');
+  const meta = { frameW: fw, frameH: fh, anchor: { x: Math.round(AK.OX * sc), y: Math.round(AK.OY * sc) }, animations: {} };
+  nomes.forEach((n, row) => {
+    const an = AKIRA_ANIMATIONS[n]; meta.animations[n] = { row, frames: an.frames, fps: an.fps, loop: an.loop };
+    for (let i = 0; i < an.frames; i++) { g.drawImage(quadro(n, i, sc, faixa), i * fw, row * fh, fw, fh); }
+  });
+  return { folha, meta };
+}
+// Usa PNG de fora no lugar do desenho por código (mesmo formato da folha exportada)
+function carregarExterno(urlPng, meta) {
+  return new Promise((ok, erro) => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { externo = { img, meta, anims: meta.animations }; limparCache(); ok(true); };
+    img.onerror = () => erro(new Error('Não achei ' + urlPng));
+    img.src = urlPng;
+  });
+}
+function usarProcedural() { externo = null; limparCache(); }
+
+return { ANIM: AKIRA_ANIMATIONS, AK, quadro, limparCache, montarFolha, carregarExterno, usarProcedural, externoAtivo: () => !!externo };
+})();
 
 /* =====================================================================
    14. RENDERIZAÇÃO (camadas: chão -> objetos/personagens por profundidade -> efeitos)
@@ -1889,8 +2477,8 @@ function desenharObj(o, sx, sy) {
   switch (o.tipo) {
     case 'jogador': {
       const [an, fr] = animJogador();
-      personagem(sx, sy, o.dir, an, fr, PAL_AKIRA(), o.flash > 0);
-      efeitoGolpe(sx, sy, o.dir); break;
+      desenharRastros();
+      desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0); break;
     }
     case 'npc': {
       personagem(sx, sy, o.dir, 'relax', Math.floor(tempo * 4 + o.x) % 4, o.pal, false);
@@ -1929,10 +2517,10 @@ function desenharObj(o, sx, sy) {
 
 function renderizar(dt) {
   const g = ctx;
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(SC, 0, 0, SC, 0, 0);
   g.fillStyle = mapa.interior ? '#1a1420' : '#16241a'; g.fillRect(0, 0, W, H);
   const shx = shake > 0 ? Math.round((Math.random() - .5) * shake) : 0, shy = shake > 0 ? Math.round((Math.random() - .5) * shake) : 0;
-  g.setTransform(1, 0, 0, 1, Math.round(W / 2 - camera.x) + shx, Math.round(H / 2 - camera.y) + shy);
+  g.setTransform(SC, 0, 0, SC, (Math.round(W / 2 - camera.x) + shx) * SC, (Math.round(H / 2 - camera.y) + shy) * SC);
   const vx0 = camera.x - W / 2 - 70, vx1 = camera.x + W / 2 + 70, vy0 = camera.y - H / 2 - 130, vy1 = camera.y + H / 2 + 90;
 
   // Camada 1: chão (imagem pronta) + água animada
@@ -1993,10 +2581,14 @@ function renderizar(dt) {
     g.fillStyle = '#000'; g.fillText(t.txt, Math.round(sx) + 1, Math.round(sy - 28 - t.t * 16) + 1);
     g.fillStyle = t.cor; g.fillText(t.txt, Math.round(sx), Math.round(sy - 28 - t.t * 16)); g.globalAlpha = 1;
   }
-  for (const f of fagulhas) { g.globalAlpha = 1 - f.t / f.vida; R(g, Math.round(f.x), Math.round(f.y), 2, 2, f.cor); } g.globalAlpha = 1;
+  for (const f of fagulhas) {                                          // faíscas = riscos brilhantes
+    g.globalAlpha = 1 - f.t / f.vida; g.strokeStyle = f.cor; g.lineWidth = 1.2; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x - f.vx * .045, f.y - f.vy * .045); g.stroke();
+  } g.globalAlpha = 1;
+  desenharFx(g);
 
   // Camada 4: efeitos de tela (folhas ao vento, vinheta, fade)
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(SC, 0, 0, SC, 0, 0);
   if (!mapa.interior) {                                                // partículas do ambiente (folhas, pétalas, névoa...)
     const am = mapa.amb || {};
     folhas.forEach((f, i) => {
@@ -2024,6 +2616,25 @@ function loop(agora) {
   atualizar(dt); renderizar(dt);
   requestAnimationFrame(loop);
 }
+
+// Exporta a sprite sheet do Akira (PNG + JSON) — dá pra desenhar por cima e carregar de volta com ?sprites=akira-sheet
+function baixar(nome, blob) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function exportarSprites() {
+  const { folha, meta } = Akira.montarFolha(1.5, FAIXAS[estado.faixa].cor);
+  folha.toBlob(b => baixar('akira-sheet.png', b));
+  baixar('akira-sheet.json', new Blob([JSON.stringify(meta, null, 1)], { type: 'application/json' }));
+  aviso('Sprites exportados: akira-sheet.png + akira-sheet.json');
+}
+// Sprites PNG de fora (fundo transparente): abra o jogo com  index.html?sprites=akira-sheet  (usa akira-sheet.png + .json)
+const baseExt = new URLSearchParams(location.search).get('sprites');
+if (baseExt) {
+  fetch(baseExt + '.json').then(r => r.json()).then(m => Akira.carregarExterno(baseExt + '.png', m))
+    .then(() => aviso('Sprites PNG carregados!')).catch(() => console.warn('Sprites externos não encontrados; usando o desenho por código.'));
+}
+window.AKIRA = { Akira, exportarSprites, jog };                       // para testes no console
 
 gerarSprites();
 gerarSprites2();
