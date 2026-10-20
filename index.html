@@ -164,7 +164,7 @@
    ===================================================================== */
 const HW = 16, HH = 8;            // meia largura/altura do tile (tile = 32x16 pixels)
 const VEL = 85;                   // velocidade do Akira (pixels de tela por segundo)
-const T = { GRAMA: 0, TERRA: 1, AGUA: 2, PONTE: 3, AREIA: 4, PEDRA: 5, PISO: 6, TATAME: 7 };
+const T = { GRAMA: 0, TERRA: 1, AGUA: 2, PONTE: 3, AREIA: 4, PEDRA: 5, PISO: 6, TATAME: 7, OUTONO: 8, CEREJA: 9, CAVERNA: 10, TANGER: 11, LAJE: 12 };
 
 const FAIXAS = [
   { nome: 'Branca', cor: '#f2f2f2' }, { nome: 'Amarela', cor: '#f4d03f' },
@@ -208,7 +208,7 @@ const COMBOS = [
 ];
 const ESPECIAL = { nome: 'Onda de Aura', custo: 30, raio: 2.6, dano: 22, prep: .25 };
 
-// Para o futuro: ligações entre as regiões (ainda NÃO estão todas construídas)
+// Ligações entre as regiões (todas construídas; as saídas de cada mapa seguem esta lista)
 const CONEXOES = [
   ['vilarejo', 'bambuzal'], ['vilarejo', 'cerejeiras'], ['vilarejo', 'outono'],
   ['bambuzal', 'cachoeira'], ['bambuzal', 'templos'], ['cachoeira', 'cavernas'],
@@ -218,8 +218,12 @@ const CONEXOES = [
 
 // Paletas dos personagens (o desenho é o mesmo, só mudam as cores)
 const PAL_FLASH = { gi: '#fff', som: '#fff', pele: '#fff', cab: '#fff', testa: '#fff', faixa: '#fff' };
-const PAL_INIM = { gi: '#b8403a', som: '#8f2f2b', pele: '#d9a37c', cab: '#4a2f1a', testa: null, faixa: '#222' };
-const PAL_CAPANGA = { gi: '#2b2b36', som: '#1d1d26', pele: '#c98f6a', cab: '#111', testa: '#b8403a', faixa: '#b8403a' };
+// Bandidos do dojo: testeira vermelha, coque, quimono cinza sem manga e munhequeiras (como na folha de sprites)
+const PAL_INIM = { gi: '#3a3a4a', som: '#2a2a36', pele: '#f0a874', cab: '#17171c', testa: '#d42a2a', faixa: '#d42a2a', braco: '#f0a874', punho: '#d42a2a', coque: true };
+const PAL_VET = { gi: '#2e2a40', som: '#1f1c2e', pele: '#e09a68', cab: '#17171c', testa: '#2f6fe0', faixa: '#2f6fe0', braco: '#e09a68', punho: '#2f6fe0', coque: true };
+const PAL_MESTRE = { gi: '#4a2030', som: '#341622', pele: '#d98e60', cab: '#e8e8e8', testa: '#e0b020', faixa: '#e0b020', braco: '#d98e60', punho: '#e0b020', coque: true };
+const PAL_RITA = { gi: '#c0486a', som: '#8f3350', pele: '#7a4a32', cab: '#14100e', testa: null, faixa: '#e8c860', trancas: true };
+const PAL_MONGE = { gi: '#d98a2a', som: '#a8671c', pele: '#d9a37c', cab: '#d9a37c', testa: null, faixa: '#7a4a1a' };
 const PAL_REN = { gi: '#2f7a4a', som: '#235c37', pele: '#e0b08a', cab: '#3a2a1a', testa: null, faixa: '#222' };
 const PAL_KENJI = { gi: '#3b4a6b', som: '#2b3650', pele: '#d9a37c', cab: '#dcdcdc', testa: null, faixa: '#222' };
 const PAL_DAVI = { gi: '#f6f6f2', som: '#d3d7de', pele: '#f1c9a5', cab: '#f1c9a5', testa: null, faixa: '#f2f2f2' };
@@ -229,8 +233,9 @@ const PAL_MEI = { gi: '#d96b8a', som: '#b04e6b', pele: '#e0b08a', cab: '#2a1a1a'
 const PAL_JUN = { gi: '#6b7a3a', som: '#4f5c2a', pele: '#d9a37c', cab: '#2a1a1a', testa: null, faixa: '#7a5a2a' };
 
 const TIPOS_INIM = {
-  aprendiz: { nome: 'Aprendiz Rebelde', hp: 34, dano: 7, vel: 1.7, xp: 18, pal: PAL_INIM },
-  capanga:  { nome: 'Capanga Rebelde',  hp: 70, dano: 12, vel: 1.9, xp: 40, pal: PAL_CAPANGA }
+  bandido:  { nome: 'Bandido do Dojo',   hp: 34,  dano: 7,  vel: 1.7, xp: 18, pal: PAL_INIM },
+  veterano: { nome: 'Bandido Veterano',  hp: 70,  dano: 12, vel: 1.9, xp: 40, pal: PAL_VET },
+  mestre:   { nome: 'Mestre Rebelde',    hp: 140, dano: 20, vel: 2.1, xp: 100, pal: PAL_MESTRE }
 };
 
 /* =====================================================================
@@ -438,6 +443,100 @@ function gerarSprites() {
   }), ax: 13, ay: 42 };
 }
 
+// Sprites extras das outras regiões (árvores, cristais, colunas, torii, cachoeira...)
+function gerarSprites2() {
+  const rt = mulberry32(5);
+  const tom = (base, cores, extra, n = 46) => [0, 1, 2, 3].map(() => crear(32, 16, g => { rombo(g, base); ruido(g, rt, cores, n); extra(g); }));
+  ATL.outono = tom('#b9783a', ['#a8672f', '#cf8a45', '#c4562e', '#e0a540'], g => ruido(g, rt, ['#d9482b', '#f0b03a', '#e8742a'], 9, 2, 1));
+  ATL.cereja = tom('#7cbf5c', ['#70b252', '#8ccd68', '#68a84c'], g => ruido(g, rt, ['#ffc0d6', '#ff9fc0', '#fff'], 8, 2, 1));
+  ATL.caverna = tom('#4a4562', ['#3d3952', '#5a5474', '#34304a', '#6a6488'], g => ruido(g, rt, ['#7a8ad8', '#a070e0'], 2), 50);
+  ATL.tanger = tom('#8bbf4c', ['#7db040', '#9bd05a', '#719f38'], g => { ruido(g, rt, ['#e8832a'], 2, 2, 2); ruido(g, rt, ['#5f8f30'], 3, 1, 2); });
+  ATL.laje = [0, 1].map(v => porPixel((a, b) => {
+    const ga = a * 2 + v * .3, gb = b * 2 + v * .2, fa = ga - Math.floor(ga), fb = gb - Math.floor(gb);
+    if (fa < .06 || fb < .06) return '#a29b8b';
+    return ((Math.floor(ga) + Math.floor(gb)) % 2) ? '#d6d0c0' : '#cbc4b4';
+  }));
+
+  const arvore = (c1, c2, c3, fruto) => ({ c: crear(64, 84, g => {
+    sombraSpr(g, 32, 78, 18, 4);
+    RO(g, 28, 46, 8, 32, '#7a4f2a'); R(g, 28, 46, 3, 32, '#946238'); R(g, 33, 46, 3, 32, '#5f3c1f');
+    const bolas = [[20, 44, 14], [44, 44, 14], [32, 30, 17], [24, 22, 12], [42, 24, 12]];
+    bolas.forEach(([x, y, r]) => disco(g, x, y, r + 1, OUT));
+    bolas.forEach(([x, y, r], i) => disco(g, x, y, r, i % 2 ? c1 : c2));
+    disco(g, 26, 26, 6, c3); disco(g, 40, 38, 5, c3);
+    if (fruto) [[14, 42], [48, 40], [30, 34], [22, 24], [40, 22], [34, 48]].forEach(([x, y]) => { R(g, x - 1, y - 1, 5, 5, OUT); R(g, x, y, 3, 3, fruto); });
+  }), ax: 32, ay: 78 });
+  SPR.arvore = arvore('#3f9a3a', '#4fae44', '#74c860', null);
+  SPR.arvoreOutono = arvore('#d9622b', '#e8892f', '#f4c050', null);
+  SPR.cerejeira = arvore('#f08fb0', '#f7b0c8', '#ffe0ea', null);
+  SPR.tangerineira = arvore('#4a9a38', '#5aae44', '#78c860', '#f08a20');
+
+  // formas pontudas (cristais e estalagmites)
+  const forma = (g, x, base, h, w, c1, c2, pico) => {
+    const larg = k => Math.max(1, Math.round(w * (pico ? (k / h < .3 ? k / h / .3 : 1 - (k / h - .3) / .7) : k / h)));
+    for (let k = 0; k < h; k++) { const ww = larg(k); R(g, x - Math.ceil(ww / 2) - 1, base - h + k, ww + 2, 1, OUT); }
+    for (let k = 0; k < h; k++) {
+      const ww = larg(k), x0 = x - Math.ceil(ww / 2);
+      R(g, x0, base - h + k, Math.ceil(ww / 2), 1, c1); R(g, x0 + Math.ceil(ww / 2), base - h + k, Math.floor(ww / 2), 1, c2);
+    }
+  };
+  SPR.cristal = [['#5ac8ff', '#2a8fd8', 'rgba(90,200,255,.4)'], ['#c08aff', '#8a4fd8', 'rgba(190,130,255,.4)']].map(([c1, c2, luz]) => ({
+    c: crear(44, 50, g => { sombraSpr(g, 22, 44, 13, 3); forma(g, 22, 44, 40, 13, c1, c2, true); forma(g, 11, 44, 24, 9, c1, c2, true); forma(g, 33, 44, 28, 9, c1, c2, true); }),
+    ax: 22, ay: 42, luz }));
+  SPR.estalagmite = { c: crear(30, 48, g => {
+    sombraSpr(g, 15, 44, 11, 3); forma(g, 15, 44, 38, 14, '#7b7598', '#5a5476', false);
+    forma(g, 6, 44, 18, 8, '#7b7598', '#5a5476', false); forma(g, 24, 44, 22, 9, '#7b7598', '#5a5476', false);
+  }), ax: 15, ay: 42 };
+  SPR.rocha = [[13, 11], [10, 8]].map(([rx, ry]) => {
+    const w = rx * 2 + 8, h = ry * 2 + 10, ax = Math.floor(w / 2), ay = h - 3;
+    return { c: crear(w, h, g => {
+      sombraSpr(g, ax, ay, rx + 1, 2); elipse(g, ax, ay - ry, rx + 1, ry + 1, OUT); elipse(g, ax, ay - ry, rx, ry, '#5d5878');
+      elipse(g, ax - 2, ay - ry - 2, Math.round(rx * .6), Math.round(ry * .5), '#7d779a'); R(g, ax + 2, ay - 3, Math.max(2, rx - 3), 2, '#454160');
+    }), ax, ay };
+  });
+  const colunaSpr = (h, topo) => ({ c: crear(26, h + 16, g => {
+    const by = h + 12; sombraSpr(g, 13, by + 2, 10, 3);
+    RO(g, 3, by - 6, 20, 6, '#cfc8b8'); RO(g, 6, by - 6 - h, 14, h, '#ddd7c8'); R(g, 6, by - 6 - h, 3, h, '#efe9dc'); R(g, 16, by - 6 - h, 4, h, '#b5ae9e');
+    if (topo) RO(g, 2, by - 12 - h, 22, 7, '#cfc8b8');
+  }), ax: 13, ay: h + 12 });
+  SPR.coluna = colunaSpr(44, true); SPR.colunaQuebrada = colunaSpr(22, false);
+  SPR.torii = { c: crear(72, 64, g => {
+    sombraSpr(g, 36, 60, 28, 4); RO(g, 10, 14, 7, 46, '#c0392b'); RO(g, 55, 14, 7, 46, '#c0392b');
+    RO(g, 2, 6, 68, 6, '#262630'); RO(g, 6, 3, 60, 4, '#262630'); RO(g, 10, 22, 52, 5, '#c0392b');
+  }), ax: 36, ay: 60 };
+  SPR.estatua = { c: crear(28, 56, g => {
+    sombraSpr(g, 14, 52, 10, 3); RO(g, 4, 42, 20, 10, '#8d8a98'); RO(g, 7, 16, 14, 28, '#a9a6b6'); R(g, 7, 16, 4, 28, '#c2bfce');
+    RO(g, 8, 4, 12, 13, '#b5b2c2'); R(g, 10, 9, 3, 2, OUT); R(g, 16, 9, 3, 2, OUT); R(g, 4, 18, 4, 16, '#a9a6b6'); R(g, 20, 18, 4, 16, '#a9a6b6');
+  }), ax: 14, ay: 50 };
+  SPR.lanternaPedra = { c: crear(18, 40, g => {
+    sombraSpr(g, 9, 37, 7, 2); RO(g, 5, 32, 8, 4, '#a9a6b6'); RO(g, 7, 16, 4, 17, '#b5b2c2'); RO(g, 3, 8, 12, 9, '#c2bfce');
+    R(g, 5, 10, 8, 5, '#ffd86b'); RO(g, 1, 3, 16, 5, '#8d8a98');
+  }), ax: 9, ay: 36 };
+  SPR.cerca = { c: crear(34, 22, g => {
+    sombraSpr(g, 17, 19, 14, 2); RO(g, 2, 6, 4, 12, '#a9743b'); RO(g, 28, 6, 4, 12, '#a9743b'); RO(g, 15, 6, 4, 12, '#a9743b');
+    RO(g, 0, 8, 34, 3, '#c48a4a'); RO(g, 0, 14, 34, 3, '#c48a4a');
+  }), ax: 17, ay: 18 };
+  SPR.cesto = { c: crear(22, 20, g => {
+    sombraSpr(g, 11, 17, 8, 2); RO(g, 3, 9, 16, 9, '#a9743b'); R(g, 3, 12, 16, 1, '#7a5226');
+    const fr = [[5, 5], [10, 3], [14, 5], [8, 7], [13, 8]];
+    fr.forEach(([x, y]) => R(g, x - 1, y - 1, 5, 5, OUT)); fr.forEach(([x, y]) => R(g, x, y, 3, 3, '#f08a20'));
+  }), ax: 11, ay: 17 };
+  SPR.altar = { c: crear(40, 36, g => {
+    sombraSpr(g, 20, 32, 16, 3); RO(g, 4, 16, 32, 14, '#a9a6b6'); RO(g, 2, 12, 36, 6, '#c2bfce'); R(g, 8, 18, 24, 6, '#b83a3a');
+    R(g, 18, 4, 4, 8, '#f4e8c0'); R(g, 19, 1, 2, 3, '#ffd86b');
+  }), ax: 20, ay: 30 };
+  SPR.almofada = { c: crear(24, 14, g => { sombraSpr(g, 12, 11, 9, 2); RO(g, 3, 4, 18, 7, '#8e44ad'); R(g, 3, 4, 18, 2, '#a86bc4'); }), ax: 12, ay: 11 };
+  SPR.cachoeira = [0, 1].map(f => ({ c: crear(54, 104, g => {
+    sombraSpr(g, 27, 96, 23, 5); RO(g, 2, 8, 50, 84, '#6f7488'); R(g, 3, 9, 9, 82, '#8a8fa4'); R(g, 42, 9, 9, 82, '#585d70');
+    R(g, 14, 8, 26, 84, '#9fdff0');
+    for (let y = 8; y < 92; y += 7) {
+      const o = ((y + f * 3) % 14 < 7) ? 0 : 5;
+      R(g, 16 + o, y, 3, 6, '#fff'); R(g, 27 + o, y + 3, 3, 5, '#fff'); R(g, 20, y + 1 + (f ? 2 : 0), 2, 4, '#d8f4fb');
+    }
+    elipse(g, 27, 92, 22, 5, '#dff6ff'); elipse(g, 27, 91, 14, 3, '#fff');
+  }), ax: 27, ay: 92 }));
+}
+
 // Casa isométrica (paredes + telhado). Âncora = canto da frente (pé da casa)
 const cacheCasa = {};
 function casaSpr(w, d, H, tel, par) {
@@ -518,10 +617,10 @@ let mapa = null;
 /* =====================================================================
    5. MAPAS (cada região/interior é uma função que monta o mapa)
    ===================================================================== */
-function novoMapa(id, nome, w, h, interior) {
+function novoMapa(id, nome, w, h, interior, base = T.GRAMA) {
   return {
-    id, nome, w, h, interior,
-    tiles: Array.from({ length: h }, () => Array(w).fill(T.GRAMA)),
+    id, nome, w, h, interior, base, escuro: false, amb: null, fazBorda: null,
+    tiles: Array.from({ length: h }, () => Array(w).fill(base)),
     bloq: Array.from({ length: h }, () => Array(w).fill(false)),
     objs: [], exits: [], flores: [], aguas: [], spawn: { x: 2, y: 2 }, ox: 0, oy: 0, cache: null
   };
@@ -533,8 +632,8 @@ function livre(m, x, y, r, gap, res, soGrama) {
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const t = m.tiles[j + dj] && m.tiles[j + dj][i + di];
     if (m.bloq[j + dj] && m.bloq[j + dj][i + di]) return false;
-    if (soGrama && (t === T.TERRA || t === T.AREIA || t === T.PONTE || t === T.PEDRA)) return false;
-    if (di === 0 && dj === 0 && (soGrama ? t !== T.GRAMA : (t === T.AGUA || t === T.PONTE))) return false;
+    if (soGrama && t !== m.base && (t === T.TERRA || t === T.AREIA || t === T.PONTE || t === T.PEDRA || t === T.LAJE)) return false;
+    if (di === 0 && dj === 0 && (soGrama ? t !== m.base : (t === T.AGUA || t === T.PONTE))) return false;
   }
   for (const z of res) if (Math.hypot(x - z.x, y - z.y) < z.r + r) return false;
   for (const o of m.objs) if (o.r > 0 && Math.hypot(x - o.x, y - o.y) < o.r + r + gap) return false;
@@ -556,24 +655,24 @@ function trilha(m, x0, y0, x1, y1, tipo = T.TERRA) {               // caminho co
   }
 }
 const novoBambu = (rnd, x, y) => ({ tipo: 'bambu', x, y, r: .16, spr: SPR.bambu[Math.floor(rnd() * SPR.bambu.length)] });
-function bambusBorda(m, rnd, res) {
-  for (let k = 0; k < Math.max(m.w, m.h); k += .55) {
+function bambusBorda(m, rnd, res, passo = .55) {
+  for (let k = 0; k < Math.max(m.w, m.h); k += passo) {
     [[k, .45 + rnd() * .4], [k, m.h - .45 - rnd() * .4], [.45 + rnd() * .4, k], [m.w - .45 - rnd() * .4, k]].forEach(([x, y]) => {
-      if (x < m.w && y < m.h && livre(m, x, y, .16, .05, res, true)) m.objs.push(novoBambu(rnd, x, y));
+      if (x < m.w && y < m.h && livre(m, x, y, .16, .05, res, true)) m.objs.push(m.fazBorda ? m.fazBorda(rnd, x, y) : novoBambu(rnd, x, y));
     });
   }
 }
 function espalhar(m, rnd, res, qtd, r, mk) {
   let n = 0, t = 0;
-  while (n < qtd && t++ < 500) {
+  while (n < qtd && t++ < Math.max(500, qtd * 6)) {
     const x = 1 + rnd() * (m.w - 2), y = 1 + rnd() * (m.h - 2);
     if (livre(m, x, y, r, .3, res, true)) { m.objs.push(Object.assign({ x, y, r }, mk())); n++; }
   }
 }
-function floresChao(m, rnd, qtd) {
+function floresChao(m, rnd, qtd, cores = ['#ff8fb1', '#ffe45e', '#ffffff', '#c9a0ff']) {
   for (let n = 0, t = 0; n < qtd && t < 800; t++) {
     const x = 1 + rnd() * (m.w - 2), y = 1 + rnd() * (m.h - 2);
-    if (m.tiles[Math.floor(y)][Math.floor(x)] === T.GRAMA) { m.flores.push({ x, y, cor: ['#ff8fb1', '#ffe45e', '#ffffff', '#c9a0ff'][Math.floor(rnd() * 4)] }); n++; }
+    if (m.tiles[Math.floor(y)][Math.floor(x)] === m.base) { m.flores.push({ x, y, cor: cores[Math.floor(rnd() * cores.length)] }); n++; }
   }
 }
 const placa = (m, x, y, texto) => m.objs.push({ tipo: 'placa', x, y, r: .22, spr: SPR.placa, texto });
@@ -587,7 +686,7 @@ function novoInimigo(tipo, x, y) {
 // --- BAMBUZAL (região inicial) ---
 function construirBambuzal() {
   const W = 26, H = 26, m = novoMapa('bambuzal', 'Bambuzal', W, H, false), rnd = mulberry32(7), res = [];
-  trilha(m, 0, 13, 9, 13); trilha(m, 9, 13, 9, 23); trilha(m, 9, 13, 13, 9); trilha(m, 13, 9, 21, 9);
+  trilha(m, 0, 13, 9, 13); trilha(m, 9, 13, 9, 24); trilha(m, 21, 5, 21, 0); trilha(m, 9, 13, 13, 9); trilha(m, 13, 9, 21, 9);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (Math.hypot(i + .5 - 21, j + .5 - 9) < 3.2) m.tiles[j][i] = T.AREIA;
   for (let y = 0; y < H; y++) {                                     // riacho
     const wx = 15 + Math.round(Math.sin(y * .45));
@@ -596,13 +695,16 @@ function construirBambuzal() {
   for (let y = 9; y <= 10; y++) for (let x = 0; x < W; x++) if (m.tiles[y][x] === T.AGUA) m.tiles[y][x] = T.PONTE;
   m.spawn = { x: 3.5, y: 13.5 };
   m.exits.push({ x: 0, y: 13, w: .9, h: 2, alvo: 'vilarejo', sx: 30.2, sy: 12.5, nome: 'Vilarejo' });
+  m.exits.push({ x: 9, y: 25.1, w: 2, h: .9, alvo: 'cachoeira', sx: 13, sy: 2.6, nome: 'Cachoeira Sagrada' });
+  m.exits.push({ x: 21, y: 0, w: 2, h: .9, alvo: 'templos', sx: 15, sy: 25.4, nome: 'Templos Antigos', req: { nivel: 2, msg: 'Os Templos Antigos são perigosos. Volte com nível 2.' } });
   res.push({ x: 3.5, y: 13.5, r: 2.2 }, { x: 20.5, y: 8, r: 1.8 });
 
-  placa(m, 8.2, 12.3, 'Leste: Clareira de treino. Sul: Cachoeira Sagrada (em breve). Oeste: Vilarejo.');
+  placa(m, 8.2, 12.3, 'Sul: Cachoeira Sagrada. Clareira de treino a leste. Oeste: Vilarejo.');
   placa(m, 1.8, 12.3, '← Vilarejo. Lá tem dojo, biblioteca, arena e hospedaria!');
-  placa(m, 8.4, 21.8, '↓ Cachoeira Sagrada (em breve). Ainda não dá para passar.');
+  placa(m, 8.4, 21.8, '↓ Cachoeira Sagrada.');
   placa(m, 18.3, 6.6, 'Clareira de treino. Cuidado com os lutadores rebeldes!');
-  [[8.2, 12.3], [1.8, 12.3], [8.4, 21.8], [18.3, 6.6]].forEach(([x, y]) => res.push({ x, y, r: .8 }));
+  placa(m, 19.2, 2.8, '↑ Templos Antigos (precisa de nível 2).');
+  [[8.2, 12.3], [1.8, 12.3], [8.4, 21.8], [18.3, 6.6], [19.2, 2.8]].forEach(([x, y]) => res.push({ x, y, r: .8 }));
   [[23.2, 7.2], [23.2, 10.8]].forEach(([x, y]) => { res.push({ x, y, r: .8 }); m.objs.push({ tipo: 'makiwara', x, y, r: .25, spr: SPR.makiwara }); });
   npc(m, { nome: 'Treinador Ren', x: 20.5, y: 8, dir: 2, pal: PAL_REN, fala: 'ren' });
 
@@ -627,39 +729,49 @@ function construirBambuzal() {
   espalhar(m, rnd, res, 4, .3, () => ({ tipo: 'toco', spr: SPR.toco }));
   floresChao(m, rnd, 70);
   // Inimigos iniciais
-  [['aprendiz', 8.5, 18.5], ['aprendiz', 6.5, 5.5], ['aprendiz', 12.5, 6.5], ['aprendiz', 21.5, 18.5], ['aprendiz', 22.5, 13.5], ['capanga', 19.5, 5.2]]
+  [['bandido', 8.5, 18.5], ['bandido', 6.5, 5.5], ['bandido', 12.5, 6.5], ['bandido', 21.5, 18.5], ['bandido', 22.5, 13.5], ['veterano', 19.5, 5.2]]
     .forEach(([t, x, y]) => { const p = acharPerto(m, x, y, .3); if (p) m.objs.push(novoInimigo(t, p[0], p[1])); });
   return m;
 }
 
 // --- VILAREJO (centro de serviços; sem inimigos) ---
 const CASAS = [
-  { id: 'dojo',       x: 5,  y: 3,  w: 4, d: 3, H: 30, tel: '#b8453a', par: ['#e9dcc0', '#d6c6a4'], nome: 'Dojo',        alvo: 'dojo' },
-  { id: 'biblioteca', x: 12, y: 3,  w: 3, d: 3, H: 30, tel: '#3f6fb0', par: ['#e9dcc0', '#d6c6a4'], nome: 'Biblioteca',  alvo: 'biblioteca' },
-  { id: 'arena',      x: 19, y: 3,  w: 5, d: 3, H: 28, tel: '#8e44ad', par: ['#e0d0b0', '#cdbd9a'], nome: 'Arena Marcial', alvo: 'arena' },
-  { id: 'hospedaria', x: 7,  y: 17, w: 3, d: 3, H: 30, tel: '#2f8f5a', par: ['#e9dcc0', '#d6c6a4'], nome: 'Hospedaria',  alvo: 'hospedaria' },
-  { id: 'cha',        x: 17, y: 17, w: 3, d: 3, H: 28, tel: '#c9892f', par: ['#e9dcc0', '#d6c6a4'], nome: '', fechada: 'Casa de Chá: fechada por enquanto (em breve).' },
-  { id: 'oficina',    x: 22, y: 17, w: 3, d: 3, H: 28, tel: '#6b5b4a', par: ['#d9cdb0', '#c4b896'], nome: '', fechada: 'Oficina de artesãos: fechada por enquanto (em breve).' }
+  { id: 'dojo',       mapa: 'vilarejo', x: 5,  y: 3,  w: 4, d: 3, H: 30, tel: '#b8453a', par: ['#e9dcc0', '#d6c6a4'], nome: 'Dojo',        alvo: 'dojo' },
+  { id: 'biblioteca', mapa: 'vilarejo', x: 12, y: 3,  w: 3, d: 3, H: 30, tel: '#3f6fb0', par: ['#e9dcc0', '#d6c6a4'], nome: 'Biblioteca',  alvo: 'biblioteca' },
+  { id: 'arena',      mapa: 'vilarejo', x: 19, y: 3,  w: 5, d: 3, H: 28, tel: '#8e44ad', par: ['#e0d0b0', '#cdbd9a'], nome: 'Arena Marcial', alvo: 'arena' },
+  { id: 'hospedaria', mapa: 'vilarejo', x: 7,  y: 17, w: 3, d: 3, H: 30, tel: '#2f8f5a', par: ['#e9dcc0', '#d6c6a4'], nome: 'Hospedaria',  alvo: 'hospedaria' },
+  { id: 'cha',        mapa: 'vilarejo', x: 17, y: 17, w: 3, d: 3, H: 28, tel: '#c9892f', par: ['#e9dcc0', '#d6c6a4'], nome: '', fechada: 'Casa de Chá: fechada por enquanto (em breve).' },
+  { id: 'oficina',    mapa: 'vilarejo', x: 22, y: 17, w: 3, d: 3, H: 28, tel: '#6b5b4a', par: ['#d9cdb0', '#c4b896'], nome: '', fechada: 'Oficina de artesãos: fechada por enquanto (em breve).' },
+  { id: 'meditacao',  mapa: 'templos', x: 19, y: 3, w: 3, d: 3, H: 30, tel: '#a63a3a', par: ['#e6dcc6', '#d2c7ac'], nome: 'Templo de Meditação', alvo: 'meditacao' },
+  { id: 'salao',      mapa: 'gt_patio', x: 12, y: 2, w: 6, d: 4, H: 36, tel: '#d4a020', par: ['#ece2cc', '#d8cdb2'], nome: 'Salão de Graduação', alvo: 'salao',
+    req: { faixa: 2, msg: 'O salão de graduação recebe quem tem faixa laranja ou superior.' } },
+  { id: 'arena_mestres', mapa: 'gt_patio', x: 5, y: 5, w: 5, d: 4, H: 34, tel: '#b8453a', par: ['#ece2cc', '#d8cdb2'], nome: 'Arena dos Grandes Mestres', alvo: 'arena_mestres',
+    req: { faixa: 3, msg: 'Só faixas verdes ou superiores entram na arena dos grandes mestres.' } },
+  { id: 'arquivo',    mapa: 'gt_patio', x: 20, y: 5, w: 4, d: 4, H: 34, tel: '#3f6fb0', par: ['#ece2cc', '#d8cdb2'], nome: 'Arquivo de Técnicas', alvo: 'arquivo',
+    req: { faixa: 1, msg: 'O arquivo abre a partir da faixa amarela.' } }
 ];
+
 function colocarCasa(m, c) {
   for (let j = c.y; j < c.y + c.d; j++) for (let i = c.x; i < c.x + c.w; i++) m.bloq[j][i] = true;
   m.objs.push({ tipo: 'casa', x: c.x + c.w / 2, y: c.y + c.d / 2, r: 0, ax: c.x + c.w, ay: c.y + c.d, spr: casaSpr(c.w, c.d, c.H, c.tel, c.par), dk: c.x + c.w / 2 + c.y + c.d / 2 + .01 });
-  if (c.alvo) m.exits.push({ x: c.x + c.w / 2 - .5, y: c.y + c.d + .05, w: 1, h: .6, alvo: c.alvo, nome: c.nome });
+  if (c.alvo) m.exits.push({ x: c.x + c.w / 2 - .5, y: c.y + c.d + .05, w: 1, h: .6, alvo: c.alvo, nome: c.nome, req: c.req });
   else placa(m, c.x + c.w / 2 - 1.5, c.y + c.d + .5, c.fechada);
 }
 function construirVilarejo() {
   const W = 32, H = 26, m = novoMapa('vilarejo', 'Vilarejo', W, H, false), rnd = mulberry32(21), res = [];
   trilha(m, 19, 12, 30, 12); trilha(m, 0, 12, 11, 12); trilha(m, 15, 7, 15, 9); trilha(m, 4, 6, 25, 6);
-  trilha(m, 15, 16, 15, 20); trilha(m, 5, 20, 24, 20);
+  trilha(m, 15, 16, 15, 20); trilha(m, 5, 20, 24, 20); trilha(m, 26, 6, 26, 0);
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (Math.hypot(i + .5 - 15.5, j + .5 - 12.5) < 4.2) m.tiles[j][i] = T.PEDRA;
-  CASAS.forEach(c => colocarCasa(m, c));
+  CASAS.filter(c => c.mapa === 'vilarejo').forEach(c => colocarCasa(m, c));
   m.exits.push({ x: 31.1, y: 11, w: .9, h: 3, alvo: 'bambuzal', sx: 1.8, sy: 14, nome: 'Bambuzal' });
+  m.exits.push({ x: 0, y: 12, w: .9, h: 2, alvo: 'cerejeiras', sx: 26.2, sy: 13.9, nome: 'Caminhos das Cerejeiras' });
+  m.exits.push({ x: 26, y: 0, w: 2, h: .9, alvo: 'outono', sx: 15.5, sy: 25.6, nome: 'Floresta do Outono' });
   m.spawn = { x: 15.5, y: 14.8 };
   m.objs.push({ tipo: 'fonte', x: 15.5, y: 12.5, r: .9, spr: SPR.fonte });
   [[12.5, 9.5], [18.5, 9.5], [12.5, 15.5], [18.5, 15.5]].forEach(([x, y]) => m.objs.push({ tipo: 'lanterna', x, y, r: .15, spr: SPR.lanterna }));
   [[12, 12.5], [19, 12.5]].forEach(([x, y]) => m.objs.push({ tipo: 'banco', x, y, r: .5, spr: SPR.banco }));
-  placa(m, 2.5, 11.2, '← Caminhos das Cerejeiras (em breve).');
-  placa(m, 27.5, 4.5, '↑ Floresta do Outono (em breve).');
+  placa(m, 2.5, 11.2, '← Caminhos das Cerejeiras.');
+  placa(m, 24.8, 4.6, '↑ Floresta do Outono.');
   placa(m, 28.5, 10.8, 'Leste → Bambuzal. Lá há lutadores rebeldes. Treine antes!');
   npc(m, { nome: 'Aldeã Mei', x: 11.2, y: 10.4, dir: 2, pal: PAL_MEI, fala: 'mei' });
   npc(m, { nome: 'Aldeão Jun', x: 21.5, y: 14.8, dir: 3, pal: PAL_JUN, fala: 'jun' });
@@ -679,7 +791,7 @@ function interior(id, nome, w, h, piso, saida) {
   m.spawn = { x: w / 2, y: h - 2.3 };
   return m;
 }
-const saidaDe = id => { const c = CASAS.find(k => k.id === id); return { mapa: 'vilarejo', x: c.x + c.w / 2, y: c.y + c.d + 1.4 }; };
+const saidaDe = id => { const c = CASAS.find(k => k.id === id); return { mapa: c.mapa, x: c.x + c.w / 2, y: c.y + c.d + 1.4 }; };
 const prop = (m, tipo, x, y, r, extra) => m.objs.push(Object.assign({ tipo, x, y, r, spr: SPR[tipo] }, extra));
 
 function construirDojo() {
@@ -712,8 +824,243 @@ function construirHospedaria() {
   npc(m, { nome: 'Hospedeira Hana', x: 5.2, y: 2.4, dir: 2, pal: PAL_HANA, fala: 'hana' });
   return m;
 }
-const MAPAS = { bambuzal: construirBambuzal, vilarejo: construirVilarejo, dojo: construirDojo,
-  biblioteca: construirBiblioteca, arena: construirArena, hospedaria: construirHospedaria };
+// --- OBJETOS GENÉRICOS E REGIÕES (cada região é só uma tabela de dados) ---
+const BON = { hp: 9999, wob: 0, alvo: true };           // boneco de treino (só balança)
+const DEF_OBJ = {
+  bambu: { r: .16 }, pedra: { r: .42 }, arbusto: { r: .38 }, toco: { r: .3 }, rocha: { r: .5 }, cristal: { r: .3 }, estalagmite: { r: .35 },
+  arvore: { r: .35 }, arvoreOutono: { r: .35 }, cerejeira: { r: .35 }, tangerineira: { r: .35 },
+  coluna: { r: .35 }, colunaQuebrada: { r: .35 }, estatua: { r: .4 }, altar: { r: .6 }, lanternaPedra: { r: .15 },
+  cerca: { r: .4 }, cesto: { r: .25 }, torii: { r: 0 }, cachoeira: { r: .9, arr: true }, boneco: { r: .3 },
+  meditar: { r: 0, k: 'almofada' }, estante: { r: .5 }, mesa: { r: .7 }
+};
+function mkObj(k, rnd, ex) {
+  const d = DEF_OBJ[k] || {}; let s = SPR[d.k || k];
+  if (Array.isArray(s) && !d.arr) s = s[Math.floor(rnd() * s.length)];
+  return Object.assign({ tipo: k, r: d.r != null ? d.r : .3, spr: s }, ex);
+}
+const pm = (m, k, x, y, ex) => m.objs.push(mkObj(k, Math.random, Object.assign({ x, y }, ex)));
+
+function regiao(c) {
+  const m = novoMapa(c.id, c.nome, c.w, c.h, false, c.base != null ? c.base : T.GRAMA), rnd = mulberry32(c.seed), res = [];
+  m.escuro = !!c.escuro; m.amb = c.amb || null;
+  if (c.borda) m.fazBorda = (r, x, y) => mkObj(c.borda, r, { x, y });
+  (c.trilhas || []).forEach(t => trilha(m, t[0], t[1], t[2], t[3], t[4] != null ? t[4] : T.TERRA));
+  (c.areas || []).forEach(a => {                                       // áreas de chão: retângulo ou elipse
+    for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) {
+      const ok = a.rect ? (i >= a.rect[0] && i < a.rect[0] + a.rect[2] && j >= a.rect[1] && j < a.rect[1] + a.rect[3])
+        : (Math.pow((i + .5 - a.c[0]) / a.c[2], 2) + Math.pow((j + .5 - a.c[1]) / a.c[3], 2) < 1);
+      if (ok) m.tiles[j][i] = a.tipo;
+    }
+  });
+  (c.pontes || []).forEach(p => {                                      // ponte = água virando tábuas
+    for (let j = p[1]; j < p[1] + p[3]; j++) for (let i = p[0]; i < p[0] + p[2]; i++) if (m.tiles[j] && m.tiles[j][i] === T.AGUA) m.tiles[j][i] = T.PONTE;
+  });
+  m.spawn = { x: c.spawn[0], y: c.spawn[1] };
+  res.push({ x: m.spawn.x, y: m.spawn.y, r: 2 });
+  (c.saidas || []).forEach(e => { m.exits.push(e); res.push({ x: e.x + e.w / 2, y: e.y + e.h / 2, r: Math.max(e.w, e.h) / 2 + 1.3 }); });
+  (c.casas || []).forEach(id => colocarCasa(m, CASAS.find(k => k.id === id)));
+  (c.corredores || []).forEach(co => {                                 // corredores livres (cavernas)
+    for (let k = 0; k < co.pts.length - 1; k++) {
+      const [x0, y0] = co.pts[k], [x1, y1] = co.pts[k + 1], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / .8);
+      for (let s = 0; s <= n; s++) res.push({ x: x0 + (x1 - x0) * s / n, y: y0 + (y1 - y0) * s / n, r: co.r });
+    }
+  });
+  (c.fixos || []).forEach(([k, x, y, ex]) => { res.push({ x, y, r: .8 }); m.objs.push(mkObj(k, rnd, Object.assign({ x, y }, ex))); });
+  (c.placas || []).forEach(([x, y, t]) => { res.push({ x, y, r: .8 }); placa(m, x, y, t); });
+  (c.npcs || []).forEach(n => { res.push({ x: n.x, y: n.y, r: 1 }); npc(m, n); });
+  (c.grupos || []).forEach(([k, n, r, a, b]) => {
+    for (let g = 0; g < n; g++) {
+      const cx = 1.5 + rnd() * (m.w - 3), cy = 1.5 + rnd() * (m.h - 3), alvo = a + Math.floor(rnd() * (b - a + 1));
+      for (let t = 0, q = 0; t < alvo * 4 && q < alvo; t++) {
+        const x = cx + (rnd() - .5) * 3.4, y = cy + (rnd() - .5) * 3.4;
+        if (livre(m, x, y, r, .18, res, true)) { m.objs.push(mkObj(k, rnd, { x, y })); q++; }
+      }
+    }
+  });
+  if (c.borda) bambusBorda(m, rnd, res, c.bordaPasso || .55);
+  (c.espalhar || []).forEach(([k, q]) => espalhar(m, rnd, res, q, DEF_OBJ[k].r || .3, () => mkObj(k, rnd)));
+  floresChao(m, rnd, c.flores != null ? c.flores : 50, c.floresCores);
+  (c.inimigos || []).forEach(([t, x, y]) => { const p = acharPerto(m, x, y, .3); if (p) m.objs.push(novoInimigo(t, p[0], p[1])); });
+  return m;
+}
+
+const CFG = {
+  // 2. Cachoeira Sagrada: lagoa turquesa, cascata, plataformas de pedra e santuário
+  cachoeira: () => ({
+    id: 'cachoeira', nome: 'Cachoeira Sagrada', w: 28, h: 28, seed: 31, spawn: [13, 2.4],
+    trilhas: [[12, 0, 12, 19], [12, 19, 0, 19], [12, 19, 26, 19], [12, 10, 15, 10]],
+    areas: [{ tipo: T.PEDRA, c: [18, 12, 6.8, 5.4] }, { tipo: T.AGUA, c: [18, 12, 4.6, 3.8] }, { tipo: T.AGUA, rect: [19, 16, 2, 12] }],
+    pontes: [[19, 19, 2, 2]],
+    saidas: [
+      { x: 12, y: 0, w: 2, h: .9, alvo: 'bambuzal', sx: 10, sy: 23.4, nome: 'Bambuzal' },
+      { x: 0, y: 19, w: .9, h: 2, alvo: 'cavernas', sx: 2.6, sy: 8.2, nome: 'Cavernas', req: { nivel: 3, msg: 'A caverna é escura e perigosa. Volte com nível 3.' } }
+    ],
+    fixos: [['cachoeira', 18, 8.1], ['pedra', 14.8, 8.3], ['pedra', 21.2, 8.5], ['torii', 24.5, 16], ['lanternaPedra', 22.4, 17], ['lanternaPedra', 26.4, 17], ['altar', 24.5, 13.6], ['meditar', 23, 22]],
+    placas: [[11, 3.4, 'Cachoeira Sagrada. No santuário a leste você pode meditar (E) para recuperar a aura.'], [10.6, 18, '← Cavernas (precisa de nível 3).']],
+    grupos: [['bambu', 8, .16, 3, 6]], borda: 'bambu', espalhar: [['pedra', 12], ['arbusto', 12], ['arvore', 8]],
+    inimigos: [['bandido', 7.5, 6.5], ['bandido', 5.5, 13.5], ['bandido', 9.5, 24.5], ['bandido', 24, 24.5], ['veterano', 15.5, 24.5], ['veterano', 6, 22]],
+    amb: { cores: ['#e6f8ff', '#bfeaf5'], kx: .3, ky: -.6 }
+  }),
+  // 3. Templos Antigos: ruínas, pátio de pedra, bonecos de desafio e o portão para o Outono
+  templos: () => ({
+    id: 'templos', nome: 'Templos Antigos', w: 30, h: 28, seed: 41, spawn: [15, 25.4],
+    trilhas: [[14, 27, 14, 18, T.LAJE], [8, 13, 0, 13], [14, 20, 28, 20], [20, 6, 20, 8, T.LAJE]],
+    areas: [{ tipo: T.LAJE, rect: [8, 8, 14, 10] }],
+    casas: ['meditacao'],
+    saidas: [
+      { x: 14, y: 27.1, w: 2, h: .9, alvo: 'bambuzal', sx: 22, sy: 2.4, nome: 'Bambuzal' },
+      { x: 0, y: 13, w: .9, h: 2, alvo: 'outono', sx: 28, sy: 8.2, nome: 'Floresta do Outono', req: { faixa: 1, msg: 'O portão antigo só se abre para faixa amarela ou mais.' } },
+      { x: 29.1, y: 20, w: .9, h: 2, alvo: 'cavernas', sx: 23, sy: 2.4, nome: 'Cavernas', req: { nivel: 4, msg: 'As cavernas profundas pedem nível 4.' } }
+    ],
+    fixos: [['torii', 15, 19.6], ['altar', 15, 9.6], ['estatua', 10.4, 12], ['estatua', 19.6, 12], ['coluna', 10, 9.5], ['coluna', 20, 9.5], ['coluna', 10, 16], ['coluna', 20, 16],
+      ['colunaQuebrada', 11.6, 17.2], ['colunaQuebrada', 18.6, 8.9], ['lanternaPedra', 12.8, 18.6], ['lanternaPedra', 17.2, 18.6], ['boneco', 12.5, 13.2, BON], ['boneco', 17.5, 13.2, BON]],
+    placas: [[16.4, 25.6, 'Templos Antigos. Os mestres antigos treinavam aqui. Teste seus golpes nos bonecos do pátio!'], [4.8, 12, '← Floresta do Outono. O portão só abre para faixa amarela.']],
+    grupos: [['bambu', 8, .16, 3, 6]], borda: 'bambu', espalhar: [['colunaQuebrada', 6], ['pedra', 10], ['arbusto', 8], ['arvore', 6]],
+    inimigos: [['veterano', 6.5, 6.5], ['veterano', 25, 13.5], ['veterano', 6, 22], ['veterano', 25, 25], ['bandido', 10.5, 24], ['bandido', 21, 24.5], ['bandido', 4.5, 10]]
+  }),
+  // 4. Cavernas: corredores escuros, cristais que brilham, lago subterrâneo e uma rota secreta
+  cavernas: () => ({
+    id: 'cavernas', nome: 'Cavernas', w: 30, h: 30, seed: 53, base: T.CAVERNA, escuro: true, spawn: [2.6, 8.2],
+    areas: [{ tipo: T.AGUA, c: [18.5, 7, 3, 2.4] }, { tipo: T.AGUA, rect: [12, 12, 2, 9] }],
+    pontes: [[12, 15, 2, 3]],
+    corredores: [{ pts: [[1, 7], [9, 7], [9, 16], [16, 16], [16, 24], [23, 24], [23, 13], [23, 2]], r: 1.7 }, { pts: [[16, 24], [16, 28], [29, 28]], r: 1.2 }],
+    saidas: [
+      { x: 0, y: 6, w: .9, h: 3, alvo: 'cachoeira', sx: 2.6, sy: 20, nome: 'Cachoeira Sagrada' },
+      { x: 22, y: 0, w: 3, h: .9, alvo: 'templos', sx: 27.4, sy: 21, nome: 'Templos Antigos' },
+      { x: 29.1, y: 27, w: .9, h: 3, alvo: 'tangerinas', sx: 2.6, sy: 25.4, nome: 'Passagem secreta', req: { faixa: 2, nivel: 5, msg: 'A passagem é estreita e vigiada. Só faixa laranja e nível 5.' } }
+    ],
+    fixos: [['colunaQuebrada', 19, 20.5], ['colunaQuebrada', 26.5, 21], ['colunaQuebrada', 26, 26.5]],
+    borda: 'rocha', bordaPasso: .8, flores: 0,
+    espalhar: [['cristal', 26], ['estalagmite', 20], ['rocha', 420]],
+    inimigos: [['veterano', 9, 11], ['veterano', 14.6, 17.4], ['veterano', 16, 21], ['veterano', 20, 24], ['veterano', 23, 17], ['mestre', 21, 28.2]],
+    amb: { cores: ['#7fd8ff', '#c9a8ff', '#ffffff'], kx: .15, ky: -.35, t: 2 }
+  }),
+  // 5. Floresta do Outono: folhas caindo, ponte velha e um caminho escondido
+  outono: () => ({
+    id: 'outono', nome: 'Floresta do Outono', w: 30, h: 28, seed: 61, base: T.OUTONO, spawn: [15, 25.4],
+    trilhas: [[14, 27, 14, 0], [14, 7, 28, 7], [14, 19, 5, 19]],
+    areas: [{ tipo: T.AGUA, rect: [20, 0, 2, 28] }],
+    pontes: [[20, 7, 2, 2]],
+    saidas: [
+      { x: 14, y: 27.1, w: 3, h: .9, alvo: 'vilarejo', sx: 27, sy: 2.4, nome: 'Vilarejo' },
+      { x: 14, y: 0, w: 3, h: .9, alvo: 'cerejeiras', sx: 15.5, sy: 25.4, nome: 'Caminhos das Cerejeiras' },
+      { x: 29.1, y: 7, w: .9, h: 2, alvo: 'templos', sx: 1.8, sy: 14, nome: 'Templos Antigos' }
+    ],
+    fixos: [['estatua', 4.6, 19.6], ['lanternaPedra', 6.8, 18.2]],
+    placas: [[12.4, 24, 'Floresta do Outono. Dizem que há um caminho escondido entre as árvores, a oeste.']],
+    grupos: [['arvoreOutono', 20, .35, 3, 6]], borda: 'arvoreOutono', bordaPasso: .9, espalhar: [['toco', 8], ['pedra', 8], ['arbusto', 6]],
+    floresCores: ['#d9482b', '#f0b03a', '#e8742a'],
+    inimigos: [['veterano', 8, 12], ['veterano', 26, 12], ['veterano', 8, 23], ['veterano', 26, 22], ['mestre', 25, 3.5], ['bandido', 10, 4], ['bandido', 10, 16], ['bandido', 26, 17]],
+    amb: { cores: ['#e8742a', '#d9482b', '#f0b03a'], kx: 1.6, ky: .9, t: 2 }
+  }),
+  // 6. Caminhos das Cerejeiras: pétalas, lanternas, riacho com ponte e santuário
+  cerejeiras: () => {
+    const fixos = [['torii', 8, 16.6], ['altar', 8, 19.8], ['lanternaPedra', 5.8, 17.8], ['lanternaPedra', 10.2, 17.8], ['meditar', 8, 22.4]];
+    [4, 10, 16, 22, 25].forEach(y => { fixos.push(['lanternaPedra', 13, y]); fixos.push(['lanternaPedra', 17, y]); });
+    return {
+      id: 'cerejeiras', nome: 'Caminhos das Cerejeiras', w: 28, h: 28, seed: 71, base: T.CEREJA, spawn: [26, 13.8],
+      trilhas: [[27, 13, 14, 13], [14, 0, 14, 27], [14, 19, 8, 19]],
+      areas: [{ tipo: T.AGUA, rect: [0, 6, 28, 2] }],
+      pontes: [[14, 6, 2, 2]],
+      saidas: [
+        { x: 27.1, y: 13, w: .9, h: 2, alvo: 'vilarejo', sx: 1.8, sy: 13.4, nome: 'Vilarejo' },
+        { x: 14, y: 27.1, w: 3, h: .9, alvo: 'outono', sx: 15.5, sy: 2.4, nome: 'Floresta do Outono' },
+        { x: 14, y: 0, w: 3, h: .9, alvo: 'tangerinas', sx: 15.5, sy: 27.2, nome: 'Floresta das Tangerinas' }
+      ],
+      fixos, placas: [[12.4, 12, 'Caminhos das Cerejeiras. O santuário ao sul acolhe quem quer meditar.']],
+      grupos: [['cerejeira', 22, .35, 2, 5]], borda: 'cerejeira', bordaPasso: .9, espalhar: [['arbusto', 10], ['pedra', 6]],
+      floresCores: ['#ffc0d6', '#ffffff', '#ff9fc0'],
+      inimigos: [['veterano', 6.5, 11], ['veterano', 22, 22], ['veterano', 22, 10], ['bandido', 6, 24], ['bandido', 10, 3], ['bandido', 21, 3], ['bandido', 5, 4]],
+      amb: { cores: ['#ffc0d6', '#ff9fc0', '#ffffff'], kx: 1, ky: .8, t: 2 }
+    };
+  },
+  // 8. Floresta das Tangerinas: pomares em fileiras, cercas, cestos e a escadaria do Grande Templo
+  tangerinas: () => {
+    const fixos = [];
+    [4, 7, 10].forEach(x => [8, 11, 14, 17, 20].forEach(y => fixos.push(['tangerineira', x + ((y * 7) % 3) * .2, y])));
+    [20, 23, 26].forEach(x => [8, 11, 14, 17, 20, 23, 26].forEach(y => fixos.push(['tangerineira', x + ((y * 5) % 3) * .2, y])));
+    [10, 12, 14, 16, 18, 20].forEach(y => { fixos.push(['cerca', 12.3, y]); fixos.push(['cerca', 17.9, y]); });
+    fixos.push(['cesto', 12.6, 9.5], ['cesto', 17.6, 13], ['cesto', 12.6, 22.5]);
+    fixos.push(['torii', 15, 2.4], ['coluna', 12, 4.2], ['coluna', 18, 4.2], ['coluna', 12, 1.4], ['coluna', 18, 1.4], ['estatua', 10.4, 5.8], ['estatua', 19.6, 5.8], ['lanternaPedra', 13.2, 6.2], ['lanternaPedra', 16.8, 6.2]);
+    return {
+      id: 'tangerinas', nome: 'Floresta das Tangerinas', w: 30, h: 30, seed: 81, base: T.TANGER, spawn: [15.5, 27.4],
+      trilhas: [[14, 29, 14, 6], [14, 24, 0, 24], [14, 7, 14, 0, T.LAJE]],
+      areas: [{ tipo: T.LAJE, rect: [11, 0, 8, 7] }],
+      saidas: [
+        { x: 13, y: 0, w: 4, h: .9, alvo: 'gt_patio', sx: 15, sy: 27.2, nome: 'Grande Templo', req: { nivel: 6, faixa: 2, msg: 'O Grande Templo só recebe quem tem faixa laranja e nível 6.' } },
+        { x: 14, y: 29.1, w: 3, h: .9, alvo: 'cerejeiras', sx: 15.5, sy: 2.4, nome: 'Caminhos das Cerejeiras' },
+        { x: 0, y: 24, w: .9, h: 3, alvo: 'cavernas', sx: 27.2, sy: 28.2, nome: 'Passagem para as Cavernas' }
+      ],
+      fixos, placas: [[12.6, 26, 'Floresta das Tangerinas. Ao norte fica o Grande Templo (faixa laranja e nível 6).']],
+      borda: 'tangerineira', bordaPasso: .9, espalhar: [['arbusto', 10], ['pedra', 6]],
+      inimigos: [['mestre', 6, 13], ['mestre', 24, 13], ['mestre', 24, 21], ['veterano', 8, 16], ['veterano', 23, 24], ['veterano', 6, 21]],
+      amb: { cores: ['#f4c050', '#8fd45a'], kx: .8, ky: .7, t: 2 }
+    };
+  },
+  // Grande Templo: pátio principal (as outras áreas são interiores liberados por faixa)
+  gt_patio: () => {
+    const fixos = [['torii', 15, 28.2], ['estatua', 9, 16], ['estatua', 21, 16], ['cerejeira', 4, 21], ['cerejeira', 26, 21], ['cerejeira', 6.8, 23.4], ['cerejeira', 23.2, 23.4]];
+    [14, 20, 25].forEach(y => { fixos.push(['coluna', 12.5, y]); fixos.push(['coluna', 17.5, y]); });
+    [17, 22.5].forEach(y => { fixos.push(['lanternaPedra', 12.5, y]); fixos.push(['lanternaPedra', 17.5, y]); });
+    return {
+      id: 'gt_patio', nome: 'Grande Templo • Pátio', w: 30, h: 30, seed: 91, base: T.LAJE, spawn: [15, 27.2],
+      areas: [{ tipo: T.GRAMA, c: [4, 21, 4.2, 4.2] }, { tipo: T.GRAMA, c: [26, 21, 4.2, 4.2] }],
+      casas: ['salao', 'arena_mestres', 'arquivo'],
+      saidas: [
+        { x: 13, y: 29.1, w: 4, h: .9, alvo: 'tangerinas', sx: 15, sy: 2.6, nome: 'Floresta das Tangerinas' },
+        { x: 29.1, y: 14, w: .9, h: 3, alvo: 'jardins', sx: 2.8, sy: 10.2, nome: 'Jardins de Meditação' }
+      ],
+      fixos, npcs: [{ nome: 'Rita', x: 15, y: 16, dir: 2, pal: PAL_RITA, fala: 'rita' }],
+      placas: [[12.6, 26.6, 'Grande Templo das Artes Marciais. Cada área abre conforme a sua faixa.']],
+      borda: 'cerejeira', bordaPasso: .9, flores: 0,
+      amb: { cores: ['#ffc0d6', '#ffffff'], kx: .5, ky: .5, t: 2 }
+    };
+  },
+  // Jardins de meditação (parte do Grande Templo)
+  jardins: () => ({
+    id: 'jardins', nome: 'Jardins de Meditação', w: 20, h: 20, seed: 101, base: T.CEREJA, spawn: [2.8, 10.2],
+    trilhas: [[0, 10, 9, 10]], areas: [{ tipo: T.AGUA, c: [13, 10, 3, 2.4] }],
+    saidas: [{ x: 0, y: 9, w: .9, h: 3, alvo: 'gt_patio', sx: 27.2, sy: 15.6, nome: 'Pátio do Grande Templo' }],
+    fixos: [['meditar', 5, 5], ['meditar', 5, 15], ['meditar', 16, 4.5], ['meditar', 16, 15.5], ['lanternaPedra', 8, 8.3], ['lanternaPedra', 8, 12.8], ['estatua', 10.5, 3.5], ['altar', 13, 16.5]],
+    npcs: [{ nome: 'Monja Sora', x: 7.5, y: 6.5, dir: 2, pal: PAL_HANA, fala: 'sora' }],
+    grupos: [['cerejeira', 6, .35, 2, 4]], borda: 'cerejeira', bordaPasso: .9, espalhar: [['arbusto', 6], ['pedra', 4]],
+    floresCores: ['#ffc0d6', '#ffffff'], amb: { cores: ['#ffc0d6', '#ffffff'], kx: .8, ky: .8, t: 2 }
+  })
+};
+
+function construirMeditacao() {
+  const m = interior('meditacao', 'Templo de Meditação', 9, 8, T.PISO, saidaDe('meditacao'));
+  pm(m, 'altar', 4.5, 1.4); [[2.5, 4], [4.5, 4.8], [6.5, 4]].forEach(([x, y]) => pm(m, 'meditar', x, y));
+  pm(m, 'lanternaPedra', 1.3, 1.3); pm(m, 'lanternaPedra', 7.7, 1.3);
+  npc(m, { nome: 'Monge Ishi', x: 6.6, y: 2.6, dir: 2, pal: PAL_MONGE, fala: 'monge' });
+  return m;
+}
+function construirArquivo() {
+  const m = interior('arquivo', 'Arquivo de Técnicas', 10, 8, T.PISO, saidaDe('arquivo'));
+  [1.6, 3.4, 5.2, 7.0, 8.8].forEach(x => pm(m, 'estante', x, .8)); [2.4, 4.2, 6].forEach(y => pm(m, 'estante', .8, y));
+  pm(m, 'mesa', 6, 4.6);
+  npc(m, { nome: 'Arquivista Noa', x: 3.6, y: 3.4, dir: 2, pal: PAL_MEI, fala: 'arquivista' });
+  return m;
+}
+function construirArenaMestres() {
+  const m = interior('arena_mestres', 'Arena dos Grandes Mestres', 12, 10, T.TATAME, saidaDe('arena_mestres'));
+  [3, 6, 9].forEach(x => pm(m, 'boneco', x, 4.5, BON));
+  pm(m, 'lanternaPedra', 1.2, 1.2); pm(m, 'lanternaPedra', 10.8, 1.2);
+  npc(m, { nome: 'Grande Mestre Gen', x: 6, y: 2.2, dir: 2, pal: PAL_KENJI, fala: 'gmestre' });
+  return m;
+}
+function construirSalao() {
+  const m = interior('salao', 'Salão de Graduação', 12, 9, T.PISO, saidaDe('salao'));
+  pm(m, 'altar', 6, 1.5); [[2.5, 3], [9.5, 3], [2.5, 6], [9.5, 6]].forEach(([x, y]) => pm(m, 'coluna', x, y));
+  npc(m, { nome: 'Mestre da Graduação', x: 6, y: 3.6, dir: 2, pal: PAL_KENJI, fala: 'kenji' });
+  return m;
+}
+const MAPAS = {
+  bambuzal: construirBambuzal, vilarejo: construirVilarejo, dojo: construirDojo,
+  biblioteca: construirBiblioteca, arena: construirArena, hospedaria: construirHospedaria,
+  meditacao: construirMeditacao, arquivo: construirArquivo, arena_mestres: construirArenaMestres, salao: construirSalao
+};
+Object.keys(CFG).forEach(k => { MAPAS[k] = () => regiao(CFG[k]()); });
 
 // Pré-desenha o chão inteiro do mapa numa imagem só (rápido e nítido)
 function paredeColunas(g, x1, y1, dx, n, cor, cor2) {
@@ -736,6 +1083,9 @@ function prepararCache(m) {
       if (t === T.GRAMA) s = pick(ATL.grama); else if (t === T.TERRA) s = pick(ATL.terra);
       else if (t === T.AREIA) s = pick(ATL.areia); else if (t === T.PEDRA) s = pick(ATL.pedra);
       else if (t === T.PISO) s = pick(ATL.piso); else if (t === T.TATAME) s = pick(ATL.tatame);
+      else if (t === T.OUTONO) s = pick(ATL.outono); else if (t === T.CEREJA) s = pick(ATL.cereja);
+      else if (t === T.CAVERNA) s = pick(ATL.caverna); else if (t === T.TANGER) s = pick(ATL.tanger);
+      else if (t === T.LAJE) s = pick(ATL.laje);
       else if (t === T.PONTE) s = ATL.ponte; else { s = ATL.agua[0]; m.aguas.push([i, j]); }
       g.drawImage(s, x, y);
     }
@@ -953,11 +1303,11 @@ function falaDe(o) {
       return { nome: 'Pietra', linhas: ['Você? Lutador? Sinceramente, você é tão fraco que eu nem precisaria me esforçar para ganhar de você.'] };
     case 'kenji': {
       const prox = estado.faixa + 1;
-      if (prox >= FAIXAS.length) return { nome: 'Mestre Kenji', linhas: ['Você já é faixa preta. Por enquanto, não tenho mais nada para te ensinar.'] };
+      if (prox >= FAIXAS.length) return { nome: o.nome, linhas: ['Você já é faixa preta. Por enquanto, não tenho mais nada para te ensinar.'] };
       const rq = REQ_FAIXA[prox];
-      if (estado.nivel >= rq.n && estado.vitorias >= rq.v) return { nome: 'Mestre Kenji', linhas: ['Você treinou duro, Akira. Vou te entregar a faixa ' + FAIXAS[prox].nome + '!'],
+      if (estado.nivel >= rq.n && estado.vitorias >= rq.v) return { nome: o.nome, linhas: ['Você treinou duro, Akira. Vou te entregar a faixa ' + FAIXAS[prox].nome + '!'],
         fim: () => { estado.faixa = prox; aviso('Nova faixa: ' + FAIXAS[prox].nome + '!'); salvar(); } };
-      return { nome: 'Mestre Kenji', linhas: [
+      return { nome: o.nome, linhas: [
         'Para a faixa ' + FAIXAS[prox].nome + ' você precisa de nível ' + rq.n + ' (você: ' + estado.nivel + ') e ' + rq.v + ' vitórias (você: ' + estado.vitorias + ').',
         'Treine nos bonecos! J bate, K usa aura, Espaço esquiva, L defende. As teclas 1 a 4 trocam o combo.'] };
     }
@@ -971,13 +1321,19 @@ function falaDe(o) {
         } };
     case 'ren':
       return { nome: 'Treinador Ren', linhas: ['Bem-vindo ao Bambuzal! Os lutadores rebeldes atacam quando você chega perto.', 'Bata com J em sequência para fazer combos. Acertar enche a aura; K usa a aura numa onda de energia.', 'Esquive com Espaço (tem recuperação!) ou segure L para defender.'] };
+    case 'rita':
+      return { nome: 'Rita', linhas: ['Seja bem-vindo ao Grande Templo das Artes Marciais, Akira. Sinta-se em casa.', 'Aqui cada mestre ensina no tempo certo. Descanse, treine e siga o seu caminho com calma.'] };
+    case 'monge': return { nome: 'Monge Ishi', linhas: ['Respire fundo. Sente-se numa almofada e aperte E para meditar.', 'A aura se acalma quando a mente se acalma.'] };
+    case 'sora': return { nome: 'Monja Sora', linhas: ['Os jardins ajudam a mente a descansar. Medite numa almofada para recuperar a sua aura.'] };
+    case 'arquivista': return { nome: 'Arquivista Noa', linhas: ['Este é o Arquivo de Técnicas. Cada combo novo se libera com o nível: 2, 3 e 5.', 'Abra o menu com M para equipar o combo que preferir.'] };
+    case 'gmestre': return { nome: 'Grande Mestre Gen', linhas: ['A Arena dos Grandes Mestres vai receber torneios no futuro. Por enquanto, treine nos bonecos.'] };
     case 'mei': return { nome: 'Aldeã Mei', linhas: ['O dojo fica ao norte da praça. A biblioteca é logo ao lado, e a arena mais à direita.', 'A hospedaria fica ao sul: lá você descansa e salva o ponto de retorno.'] };
     case 'jun': return { nome: 'Aldeão Jun', linhas: ['Dizem que há lutadores rebeldes no Bambuzal, a leste daqui. Cuidado, jovem!'] };
   }
   return { nome: o.nome || '???', linhas: [o.texto || '...'] };
 }
 
-const INTERATIVOS = { npc: 'Falar', placa: 'Ler', papel: 'Pegar' };
+const INTERATIVOS = { npc: 'Falar', placa: 'Ler', papel: 'Pegar', meditar: 'Meditar' };
 function alvoInteracao() {
   let melhor = null, menor = 1.5;
   for (const o of mapa.objs) {
@@ -995,6 +1351,10 @@ function interagir() {
     estado.inv.papel = nPapeis() + 1; estado.coletados[o.id] = true;
     mapa.objs = mapa.objs.filter(x => x !== o);
     aviso('Papel encontrado! ' + nPapeis() + '/7' + (nPapeis() >= 7 ? ' — volte à biblioteca!' : '')); salvar(); return;
+  }
+  if (o.tipo === 'meditar') {
+    estado.aura = maxAura(); estado.hp = Math.min(maxHp(), estado.hp + Math.round(maxHp() * .25));
+    aviso('Você meditou: aura restaurada e um pouco de vida!'); salvar(); return;
   }
   if (o.tipo === 'npc') { const [ax, ay] = iso(jog.x, jog.y), [bx, by] = iso(o.x, o.y); o.dir = dirDeVetor(ax - bx, (ay - by) * 2); }
   abrirDialogo(o.tipo === 'placa' ? { nome: 'Placa', linhas: [o.texto] } : falaDe(o));
@@ -1178,6 +1538,7 @@ function carregarMapa(id, sx, sy) {
   const [px, py] = iso(jog.x, jog.y); camera.x = px; camera.y = py - 14;
   hudChave = '';
 }
+const reqOk = r => (!r.nivel || estado.nivel >= r.nivel) && (r.faixa == null || estado.faixa >= r.faixa);
 function irPara(id, sx, sy, cb) { fade = { f: 0, t: 0, id, sx, sy, cb }; }
 function tickFade(dt) {
   fade.t += dt;
@@ -1241,7 +1602,10 @@ function atualizar(dt0) {
     if (jog.t > 1.3 && !fade) irPara(estado.respawn.mapa, estado.respawn.x, estado.respawn.y, aposDerrota);
   } else if (ctrl) {                                                   // portas e saídas
     for (const x of mapa.exits) {
-      if (jog.x > x.x && jog.x < x.x + x.w && jog.y > x.y && jog.y < x.y + x.h) { irPara(x.alvo, x.sx, x.sy); break; }
+      if (jog.x > x.x && jog.x < x.x + x.w && jog.y > x.y && jog.y < x.y + x.h) {
+        if (x.req && !reqOk(x.req)) { if (avisoT <= 0) aviso(x.req.msg); }       // barreira de nível/faixa
+        else { irPara(x.alvo, x.sx, x.sy); break; }
+      }
     }
   }
 
@@ -1257,7 +1621,7 @@ function atualizar(dt0) {
    ===================================================================== */
 function personagem(sx, sy, dir, pose, fase, pal, flash) {
   const g = ctx; sx = Math.round(sx); sy = Math.round(sy);
-  const P = flash ? PAL_FLASH : pal;
+  const P = flash ? PAL_FLASH : pal, ac = P.braco || P.gi;
   g.globalAlpha = .3; elipse(g, sx, sy, 7, 3, '#000'); g.globalAlpha = 1;
   if (pose === 'ko') {                                                 // derrotado
     RO(g, sx - 11, sy - 5, 16, 5, P.gi); RO(g, sx + 5, sy - 7, 7, 7, P.pele); R(g, sx + 5, sy - 8, 7, 3, P.cab); R(g, sx - 11, sy - 3, 16, 2, P.faixa);
@@ -1278,8 +1642,12 @@ function personagem(sx, sy, dir, pose, fase, pal, flash) {
     const l1 = Math.round(s * 3);
     RS(-2 - l1, -6, 4, 6, P.som); RS(-2 + l1, -6, 4, 6, P.gi);
     RS(-4, -15 + bob, 8, 9, P.gi); RS(-4, -9 + bob, 8, 2, P.faixa); RS(-6, -9 + bob, 2, 3, P.faixa); RS(-7, -6 + bob + fl, 1, 3, P.faixa);
-    RS(-1 - Math.round(s * 2), -14 + bob, 3, 6, P.gi); RS(-1 - Math.round(s * 2), -8 + bob, 3, 2, P.pele);
+    RS(-1 - Math.round(s * 2), -14 + bob, 3, 6, ac); RS(-1 - Math.round(s * 2), -8 + bob, 3, 2, P.pele);
+    if (P.punho) RS(-1 - Math.round(s * 2), -9 + bob, 3, 2, P.punho);
+    if (P.trancas) RS(-6, -22 + bob, 2, 12, P.cab);
     RS(-4, -23 + bob, 8, 8, P.pele); RS(-5, -25 + bob, 10, 4, P.cab); RS(-5, -21 + bob, 4, 4, P.cab);
+    if (P.espeto) { RS(-4, -28 + bob, 3, 3, P.cab); RS(0, -28 + bob, 4, 3, P.cab); }
+    if (P.coque) RS(-6, -29 + bob, 5, 4, P.cab);
     if (P.testa) { RS(-5, -20 + bob, 10, 2, P.testa); RS(-9, -20 + bob + fl, 4, 1, P.testa); RS(-8, -18 + bob - fl, 3, 1, P.testa); }
     if (f < 0) R(g, sx - 3, sy - 19 + bob, 1, 2, OUT); else R(g, sx + 2, sy - 19 + bob, 1, 2, OUT);
   } else {                                                             // de frente / costas
@@ -1291,31 +1659,39 @@ function personagem(sx, sy, dir, pose, fase, pal, flash) {
     RO(g, sx - 5 + sh, sy - 9 + bob, 10, 2, P.faixa); RO(g, sx - 1 + sh, sy - 9 + bob, 2, 3, P.faixa);
     R(g, sx + sh, sy - 6 + bob, 1, 3, P.faixa); R(g, sx - 2 + sh, sy - 6 + bob, 1, 3, P.faixa);
     const a = Math.round(s * 1.5);
-    RO(g, sx - 8 + sh, sy - 14 + bob - a, 3, 6, P.gi); R(g, sx - 8 + sh, sy - 8 + bob - a, 3, 2, P.pele);
-    RO(g, sx + 5 + sh, sy - 14 + bob + a, 3, 6, P.gi); R(g, sx + 5 + sh, sy - 8 + bob + a, 3, 2, P.pele);
+    RO(g, sx - 8 + sh, sy - 14 + bob - a, 3, 6, ac); R(g, sx - 8 + sh, sy - 8 + bob - a, 3, 2, P.pele);
+    RO(g, sx + 5 + sh, sy - 14 + bob + a, 3, 6, ac); R(g, sx + 5 + sh, sy - 8 + bob + a, 3, 2, P.pele);
+    if (P.punho) { R(g, sx - 8 + sh, sy - 9 + bob - a, 3, 2, P.punho); R(g, sx + 5 + sh, sy - 9 + bob + a, 3, 2, P.punho); }
+    if (P.trancas) {                                                   // tranças (Rita)
+      R(g, sx - 7 + sh, sy - 22 + bob, 2, 13, P.cab); R(g, sx + 5 + sh, sy - 22 + bob, 2, 13, P.cab);
+      R(g, sx - 7 + sh, sy - 10 + bob, 2, 1, '#e8c860'); R(g, sx + 5 + sh, sy - 10 + bob, 2, 1, '#e8c860');
+    }
     RO(g, sx - 4 + sh, sy - 23 + bob, 8, 8, frente ? P.pele : P.cab); RO(g, sx - 5 + sh, sy - 25 + bob, 10, 4, P.cab);
+    if (P.espeto) { RO(g, sx - 4 + sh, sy - 28 + bob, 3, 3, P.cab); RO(g, sx + 1 + sh, sy - 28 + bob, 4, 3, P.cab); RO(g, sx - 1 + sh, sy - 29 + bob, 2, 2, P.cab); }
+    if (P.coque) RO(g, sx - 2 + sh, sy - 29 + bob, 5, 4, P.cab);
     if (P.testa) {
       RO(g, sx - 5 + sh, sy - 20 + bob, 10, 2, P.testa);
-      if (frente) R(g, sx + 5 + sh, sy - 20 + bob + fl, 3, 1, P.testa);
+      if (frente) { R(g, sx + 5 + sh, sy - 20 + bob + fl, 3, 1, P.testa); R(g, sx - 8 + sh, sy - 19 + bob - fl, 3, 1, P.testa); }
       else { R(g, sx - 2 + sh, sy - 18 + bob, 1, 4 + fl, P.testa); R(g, sx + 1 + sh, sy - 18 + bob, 1, 3 - fl, P.testa); }
     }
     if (frente) { R(g, sx - 2 + sh, sy - 19 + bob, 1, 2, OUT); R(g, sx + 1 + sh, sy - 19 + bob, 1, 2, OUT); }
   }
   const v = DIRV[dir];
   if (pose === 'soco') {                                               // braço esticado
-    for (let k = 1; k <= 6; k++) RO(g, sx + Math.round(v[0] * k * 1.7) - 1, sy - 12 + Math.round(v[1] * k * .9) - 1, 3, 3, P.gi);
+    for (let k = 1; k <= 6; k++) RO(g, sx + Math.round(v[0] * k * 1.7) - 1, sy - 12 + Math.round(v[1] * k * .9) - 1, 3, 3, ac);
     RO(g, sx + Math.round(v[0] * 11) - 2, sy - 12 + Math.round(v[1] * 5.5) - 2, 4, 4, P.pele);
   } else if (pose === 'chute') {                                       // perna esticada
     for (let k = 1; k <= 6; k++) RO(g, sx + Math.round(v[0] * k * 1.9) - 2, sy - 6 + Math.round(v[1] * k) - 2, 4, 4, P.gi);
     RO(g, sx + Math.round(v[0] * 13) - 2, sy - 6 + Math.round(v[1] * 6.5) - 2, 5, 4, P.pele);
   } else if (pose === 'def') {                                         // guarda: braços cruzados
-    RO(g, sx - 6, sy - 15, 12, 3, P.gi); RO(g, sx - 6, sy - 12, 12, 3, P.gi); R(g, sx - 7, sy - 15, 2, 6, P.pele); R(g, sx + 5, sy - 15, 2, 6, P.pele);
+    RO(g, sx - 6, sy - 15, 12, 3, ac); RO(g, sx - 6, sy - 12, 12, 3, ac); R(g, sx - 7, sy - 15, 2, 6, P.pele); R(g, sx + 5, sy - 15, 2, 6, P.pele);
   } else if (pose === 'prep' || pose === 'vit') {                      // braços para cima (golpe armado / vitória)
-    RO(g, sx + 5, sy - 24, 3, 9, P.gi); R(g, sx + 5, sy - 26, 3, 2, P.pele);
-    if (pose === 'vit') { RO(g, sx - 8, sy - 24, 3, 9, P.gi); R(g, sx - 8, sy - 26, 3, 2, P.pele); }
+    RO(g, sx + 5, sy - 24, 3, 9, ac); R(g, sx + 5, sy - 26, 3, 2, P.pele);
+    if (pose === 'vit') { RO(g, sx - 8, sy - 24, 3, 9, ac); R(g, sx - 8, sy - 26, 3, 2, P.pele); }
   }
 }
-const PAL_AKIRA = () => ({ gi: '#f6f6f2', som: '#d3d7de', pele: '#e2ae85', cab: '#1c1b22', testa: '#15141a', faixa: FAIXAS[estado.faixa].cor });
+// Akira como na folha de sprites: cabelo castanho espetado, quimono branco (a faixa muda com a graduação)
+const PAL_AKIRA = () => ({ gi: '#f6f4ee', som: '#a9aebd', pele: '#cf9168', cab: '#4a2f24', testa: null, faixa: FAIXAS[estado.faixa].cor, espeto: true });
 
 /* =====================================================================
    14. RENDERIZAÇÃO (camadas: chão -> objetos/personagens por profundidade -> efeitos)
@@ -1366,6 +1742,7 @@ function desenharObj(o, sx, sy) {
       spr(o.spr, sx, sy + yb); break;
     }
     case 'casa': break;
+    case 'cachoeira': spr(o.spr[Math.floor(tempo * 4) % 2], sx, sy); break;
     default: if (o.spr) spr(o.spr, sx, sy);
   }
 }
@@ -1400,6 +1777,14 @@ function renderizar(dt) {
     if (sx < vx0 || sx > vx1 || sy < vy0 || sy > vy1 + 120) continue;
     if (o.tipo === 'casa') spr(o.spr, sx, sy); else desenharObj(o, sx, sy);
   }
+  if (mapa.escuro) {                                                   // cavernas: escuro, com brilho dos cristais
+    g.fillStyle = 'rgba(10,8,34,.42)'; g.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0 + 120);
+    g.globalCompositeOperation = 'lighter';
+    const luz = (x, y, r, c) => { const gr = g.createRadialGradient(x, y, 1, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
+    for (const o of mapa.objs) if (o.tipo === 'cristal') { const [sx, sy] = iso(o.x, o.y); if (sx > vx0 && sx < vx1 && sy > vy0 && sy < vy1) luz(sx, sy - 18, 34, o.spr.luz); }
+    const [px, py] = iso(jog.x, jog.y); luz(px, py - 12, 46, 'rgba(255,235,190,.22)');
+    g.globalCompositeOperation = 'source-over';
+  }
 
   // Camada 3: avisos por cima de tudo
   g.textAlign = 'center';
@@ -1432,10 +1817,14 @@ function renderizar(dt) {
 
   // Camada 4: efeitos de tela (folhas ao vento, vinheta, fade)
   g.setTransform(1, 0, 0, 1, 0, 0);
-  if (!mapa.interior) for (const f of folhas) {
-    f.x += f.vx * dt; f.y += f.vy * dt;
-    if (f.x > W + 5) f.x = -5; if (f.y > H + 5) f.y = -5;
-    R(g, Math.round(f.x), Math.round(f.y), 2, 1, f.c);
+  if (!mapa.interior) {                                                // partículas do ambiente (folhas, pétalas, névoa...)
+    const am = mapa.amb || {};
+    folhas.forEach((f, i) => {
+      f.x += f.vx * dt * (am.kx != null ? am.kx : 1); f.y += f.vy * dt * (am.ky != null ? am.ky : 1);
+      if (f.x > W + 5) f.x = -5; if (f.x < -5) f.x = W + 5;
+      if (f.y > H + 5) f.y = -5; if (f.y < -5) f.y = H + 5;
+      R(g, Math.round(f.x), Math.round(f.y), am.t || 2, am.t ? am.t - 1 : 1, am.cores ? am.cores[i % am.cores.length] : f.c);
+    });
   }
   g.fillStyle = vinheta; g.fillRect(0, 0, W, H);
   if (fade) {
@@ -1457,6 +1846,7 @@ function loop(agora) {
 }
 
 gerarSprites();
+gerarSprites2();
 carregarSave();
 redimensionar();
 carregarMapa(estado.respawn.mapa, estado.respawn.x, estado.respawn.y);
