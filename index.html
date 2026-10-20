@@ -15,26 +15,29 @@
   #hud, #dica, #dialogo, #aviso, #joystick, .btn { z-index: 5; }
   #menu { z-index: 10; }
   canvas { display: block; width: 100%; height: 100%; outline: none; }
+  canvas.retro { image-rendering: crisp-edges; image-rendering: pixelated; }   /* visual retrô: pixels nítidos, sem borrão */
 
-  /* ===== HUD ===== */
+  /* ===== HUD estilo arcade (KOF/SNK): barras inclinadas, moldura metálica, fonte itálica com sombra ===== */
   #hud {
-    position: fixed; top: 6px; left: 6px; width: 210px;
-    background: rgba(16, 24, 32, .82); border: 2px solid #f4d03f;
-    border-radius: 4px; color: #fff; padding: 6px 8px;
-    font-size: 12px; line-height: 1.4; pointer-events: none;
+    position: fixed; top: 8px; left: 8px; width: 244px;
+    background: linear-gradient(180deg, #232a4d 0%, #0d1027 100%);
+    border: 2px solid #c9d0e6; border-radius: 3px; color: #fff; padding: 6px 10px 7px;
+    font-size: 12px; line-height: 1.35; pointer-events: none; font-style: italic; font-weight: bold;
+    letter-spacing: .5px; text-shadow: 2px 2px 0 #000;
+    box-shadow: 0 0 0 2px #000, 0 0 14px rgba(0, 229, 255, .45), inset 0 0 0 1px #5a6490;
   }
   .linha { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .faixa-cor {
-    display: inline-block; width: 22px; height: 6px; border: 1px solid #fff;
-    background: var(--faixa, #f2f2f2);
+    display: inline-block; width: 22px; height: 7px; border: 1px solid #000; transform: skewX(-15deg);
+    background: var(--faixa, #f2f2f2); box-shadow: 0 0 0 1px #fff;
   }
-  .barra { position: relative; height: 11px; margin: 3px 0; background: #2a2f3a; border: 1px solid #000; }
+  .barra { position: relative; height: 13px; margin: 4px 0; background: #07081a; border: 2px solid #c9d0e6; box-shadow: 0 0 0 1px #000, 2px 2px 0 #000; transform: skewX(-15deg); }
   .barra i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p, 100) * 1%); }
-  .barra span { position: absolute; inset: 0; text-align: center; font-size: 9px; line-height: 11px; }
-  .vida i { background: #e0453a; }
-  .aura i { background: #3aa9e0; }
-  .xp i { background: #f4d03f; }
-  #hLoc { color: #9be36b; font-weight: bold; }
+  .barra span { position: absolute; inset: 0; text-align: center; font-size: 9px; line-height: 13px; transform: skewX(15deg); text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; letter-spacing: 1px; }
+  .vida i { background: linear-gradient(180deg, #fff3a0 0%, #ffd23a 30%, #ff7a1f 65%, #d8281f 100%); }
+  .aura i { background: linear-gradient(180deg, #d6fbff 0%, #5fe0ff 35%, #2a8cff 70%, #1a46c8 100%); }
+  .xp i { background: linear-gradient(180deg, #fff 0%, #f4d03f 40%, #b8860b 100%); }
+  #hLoc { color: #5ff3ff; font-weight: bold; text-shadow: 0 0 6px #00e5ff, 2px 2px 0 #000; }
   #hMissao { color: #f4d03f; font-size: 11px; }
   #hCombo { color: #bcd; font-size: 11px; }
 
@@ -144,7 +147,7 @@
 
 <footer id="dica">
   WASD/Setas andar • J bater • K técnica de aura • Espaço esquivar • L defender<br>
-  Shift correr • V pular • C rajada de socos • T comemorar • Shift+P exportar sprites<br>
+  B visual retrô/HD • G grade neon • Shift correr • V pular • C rajada de socos • T comemorar • Shift+P exportar sprites<br>
   E interagir • M menu • 1-4 trocar combo • Q comer • Shift+R apagar save
 </footer>
 
@@ -1041,6 +1044,23 @@ function paredeColunas(g, x1, y1, dx, n, cor, cor2) {
     R(g, x, y - 10, 1, 10, cor2); R(g, x, y - WH, 1, 3, '#5a3a22');
   }
 }
+// Grade de piso isométrico neon (estilo arcade SNK): linhas ciano, a cada 4 tiles uma linha magenta
+function gradeDoMapa(m) {
+  const c = document.createElement('canvas'); c.width = Math.ceil((m.w + m.h) * 16 * SC); c.height = Math.ceil(((m.w + m.h) * 8 + (m.interior ? 60 : 6) + 6) * SC);
+  const g = c.getContext('2d'); g.scale(SC, SC); g.lineWidth = 1; g.lineCap = 'butt';
+  const tr = (cor, f) => { g.strokeStyle = cor; g.beginPath(); f(); g.stroke(); };
+  const lados = [[], [], [], []];                                       // [ciano NE, ciano NW, magenta NE, magenta NW]
+  for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) {
+    if (m.tiles[j][i] === T.AGUA) continue;
+    const x = (i - j) * 16 - 16 + m.ox, y = (i + j) * 8 + m.oy;
+    lados[i % 4 === 0 ? 2 : 0].push([x + 16, y, x + 32, y + 8]);       // aresta de cima -> direita
+    lados[j % 4 === 0 ? 3 : 1].push([x + 16, y, x, y + 8]);            // aresta de cima -> esquerda
+  }
+  const cores = ['rgba(90,240,255,.3)', 'rgba(90,240,255,.3)', 'rgba(255,90,220,.5)', 'rgba(255,90,220,.5)'];
+  lados.forEach((l, k) => tr(cores[k], () => l.forEach(([a, b, x, y]) => { g.moveTo(a + .5, b + .5); g.lineTo(x + .5, y + .5); })));
+  if (PIX.on) pixelarCv(c);
+  return c;
+}
 function prepararCache(m) {
   const margem = m.interior ? 60 : 6;
   m.ox = m.h * 16; m.oy = margem;
@@ -1075,7 +1095,8 @@ function prepararCache(m) {
     g.beginPath(); pts.forEach((p, k) => (k ? g.lineTo(p[0] + m.ox, p[1] + m.oy) : g.moveTo(p[0] + m.ox, p[1] + m.oy))); g.closePath();
     g.fillStyle = '#b83a3a'; g.fill(); g.strokeStyle = '#e8c860'; g.lineWidth = 1.2; g.stroke();
   }
-  m.cache = c; m.cacheSC = SC;
+  if (PIX.on) pixelarCv(c);
+  m.cache = c; m.cacheSC = SC; m.grade = gradeDoMapa(m);
 }
 
 /* =====================================================================
@@ -1091,6 +1112,8 @@ addEventListener('keydown', e => {
     edge[e.code] = true;
     if (e.code === 'KeyR' && e.shiftKey) reiniciar();
     if (e.code === 'KeyP' && e.shiftKey) exportarSprites();
+    if (e.code === 'KeyB') alternarVisual();
+    if (e.code === 'KeyG') { gradeNeon = !gradeNeon; aviso(gradeNeon ? 'Grade neon: ligada' : 'Grade neon: desligada'); }
   }
   teclas[e.code] = true;
 });
@@ -1122,18 +1145,38 @@ document.querySelectorAll('.btn').forEach(b => {                       // botõe
    7. TELA, CÂMERA E COLISÃO
    ===================================================================== */
 const canvas = document.getElementById('jogo'), ctx = canvas.getContext('2d');
+const PIX = { on: true };                           // true = visual retrô KOF/SNK (pixel art nítida); false = anime HD
+let gradeNeon = true;
+try { PIX.on = localStorage.getItem('karate-visual') !== 'hd'; } catch (e) {}
 let W = 480, H = 270, SC = 2, vinheta = null;      // SC = zoom do mundo pixelado; o canvas tem resolução cheia (Akira não é pixel art)
 const camera = { x: 0, y: 0 };
 let shake = 0, hitstop = 0, tempo = 0;
 function redimensionar() {
   const S = Math.max(2, Math.round(Math.min(innerHeight / 270, innerWidth / 380)));   // zoom inteiro = pixel nítido
   W = Math.ceil(innerWidth / S); H = Math.ceil(innerHeight / S);
-  if (SC !== S) { SC = S; if (typeof Akira !== 'undefined') Akira.limparCache(); if (mapa) prepararCache(mapa); }
-  canvas.width = W * S; canvas.height = H * S;
-  ctx.imageSmoothingEnabled = false;                               // cenário continua pixelado e nítido
-  ctx.setTransform(S, 0, 0, S, 0, 0);
+  const novo = PIX.on ? 1 : S;                                     // retrô: desenha pequeno e o CSS estica (pixels nítidos)
+  if (SC !== novo) { SC = novo; if (typeof Akira !== 'undefined') Akira.limparCache(); if (mapa) prepararCache(mapa); }
+  canvas.width = W * SC; canvas.height = H * SC;
+  canvas.classList.toggle('retro', PIX.on);
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(SC, 0, 0, SC, 0, 0);
   vinheta = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .4, W / 2, H / 2, Math.max(W, H) * .8);
-  vinheta.addColorStop(0, 'rgba(0,10,0,0)'); vinheta.addColorStop(1, 'rgba(0,10,0,.4)');
+  vinheta.addColorStop(0, 'rgba(0,10,0,0)'); vinheta.addColorStop(1, PIX.on ? 'rgba(24,0,48,.5)' : 'rgba(0,10,0,.4)');
+}
+function alternarVisual() {                                         // só muda o visual; a mecânica é a mesma
+  PIX.on = !PIX.on; try { localStorage.setItem('karate-visual', PIX.on ? 'retro' : 'hd'); } catch (e) {}
+  SC = -1; redimensionar(); aviso(PIX.on ? 'Visual: RETRÔ KOF (pixel art)' : 'Visual: ANIME HD');
+}
+// Pixel art de verdade: borda dura (sem serrilhado suave), paleta reduzida e sombras tramadas (xadrez)
+function pixelarCv(c) {
+  const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height), a = d.data, w = c.width, q = v => Math.min(255, Math.round(v / 34) * 34);
+  for (let i = 0, p = 0; i < a.length; i += 4, p++) {
+    const al = a[i + 3];
+    if (al >= 130) { a[i + 3] = 255; a[i] = q(a[i]); a[i + 1] = q(a[i + 1]); a[i + 2] = q(a[i + 2]); }
+    else if (al >= 24 && a[i] + a[i + 1] + a[i + 2] < 150) { const x = p % w, y = (p / w) | 0; if ((x + y) & 1) a[i + 3] = 0; else { a[i + 3] = 150; a[i] = 12; a[i + 1] = 6; a[i + 2] = 28; } }   // sombra = trama de pontinhos
+    else a[i + 3] = 0;
+  }
+  g.putImageData(d, 0, 0);
 }
 addEventListener('resize', redimensionar);
 canvas.addEventListener('pointerdown', () => { window.focus(); canvas.focus(); });
@@ -1349,7 +1392,7 @@ function soltarFolha(o) {                                               // sorte
   const cores = o.spr === SPR.arvoreOutono ? ['#e8742a', '#f0b03a', '#d9482b'] : o.spr === SPR.cerejeira ? ['#ffc0d6', '#ff9fc0', '#fff2f6'] : ['#6fbf4c', '#8fd45a', '#4fa844'];
   fx.push({ tipo: 'folha', x: px + (Math.random() - .5) * 40, y: py - 40 - Math.random() * 30, vx: (Math.random() - .3) * 8, vy: 10 + Math.random() * 8, rot: Math.random() * 6, vr: (Math.random() - .5) * 4, cor: cores[Math.floor(Math.random() * 3)], tam: 1.6 + Math.random(), t: 0, vida: 3.2 });
 }
-function virar() { const v = DIRV[jog.dir][0]; if (v) jog.face = v > 0 ? 1 : -1; }   // Akira olha pra esquerda/direita da tela
+function virar() { const v = DIRV[jog.dir][0]; if (v) jog.face = v > 0 ? 1 : -1; jog.costas = DIRV[jog.dir][1] < 0; }   // costas = indo pra cima da tela (4 vistas: DE/DD/CE/CD)   // Akira olha pra esquerda/direita da tela
 function popup(x, y, txt, cor) { textos.push({ x, y, txt, t: 0, cor }); }
 function fagulha(x, y, cor, n) {
   const [sx, sy] = iso(x, y);
@@ -1474,7 +1517,7 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
         andar(jog, ix, iy, (jog.def ? .4 : 1) * agi * mag * (jog.corre ? 1.55 : 1), dt);
         if (jog.corre && dt > 0) {                                      // poeira e linhas de velocidade ao correr
           jog.pt -= dt; if (jog.pt <= 0) { jog.pt = .1; fxPoeira(1); fxLinhas(1, DIRV[jog.dir][0], DIRV[jog.dir][1]); }
-          jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .07; rastros.push({ x: jog.x, y: jog.y, an: 'run', f: Math.floor(jog.fase / 6.283 * 8) % 8, face: jog.face, t: 0, vida: .2 }); }
+          jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .07; rastros.push({ costas: jog.costas, x: jog.x, y: jog.y, an: 'run', f: Math.floor(jog.fase / 6.283 * 8) % 8, face: jog.face, t: 0, vida: .2 }); }
         }
       }
       if (jog.vit > 0 && dt > 0) { jog.vit -= dt; if (jog.vit <= 0 && !ix && !iy) { jog.est = 'vitoria'; jog.t = 0; } }
@@ -1537,7 +1580,7 @@ function atualizarJogador(dt, ix, iy, mag, ctrl) {
     }
     case 'esquiva':
       jog.t += dt; mover(jog, jog.ex * 6.5 * dt, jog.ey * 6.5 * dt);
-      if (dt > 0) { jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .045; rastros.push({ x: jog.x, y: jog.y, an: 'dodge', f: Math.min(5, Math.floor(jog.t / .26 * 6)), face: jog.face, t: 0, vida: .26 }); } }
+      if (dt > 0) { jog.rt -= dt; if (jog.rt <= 0) { jog.rt = .045; rastros.push({ costas: jog.costas, x: jog.x, y: jog.y, an: 'dodge', f: Math.min(5, Math.floor(jog.t / .26 * 6)), face: jog.face, t: 0, vida: .26 }); } }
       if (jog.t >= .26) { jog.est = 'livre'; jog.bloqT = .18; }
       break;
     case 'dano':
@@ -1929,7 +1972,7 @@ function animJogador() {
       return ['idle', Math.floor(tempo * 8) % 6];
   }
 }
-function virarObj(o) { const v = DIRV[o.dir][0]; if (v) o.face = v > 0 ? 1 : -1; else if (!o.face) o.face = 1; }   // olha pra esquerda/direita da tela
+function virarObj(o) { const v = DIRV[o.dir][0]; if (v) o.face = v > 0 ? 1 : -1; else if (!o.face) o.face = 1; o.costas = DIRV[o.dir][1] < 0; }   // olha pra esquerda/direita da tela
 function animInimigo(o) {                                          // qual animação anime o inimigo usa agora
   if (!o.vivo) return ['ko', Math.max(0, Math.min(5, Math.floor((.5 - o.t) / .5 * 6)))];
   if (o.stun > 0) return ['hit', Math.max(0, Math.min(3, Math.floor((.45 - o.stun) / .45 * 4)))];
@@ -1949,12 +1992,15 @@ function estiloPal(p) {                                                  // pale
   ESTILOS.set(p, e); return e;
 }
 const estiloAkira = () => { const c = FAIXAS[estado.faixa].cor; return ESTILOS_FAIXA[c] || (ESTILOS_FAIXA[c] = Akira.ESTILO_AKIRA(c)); };
-function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est) {
+function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est, costas) {
   est = est || estiloAkira();
-  const k = Akira.AK.K * est.esc, sc = k * SC, q = Akira.quadro(an, f, sc, est);
+  const k = Akira.AK.K * est.esc * (PIX.on ? 1.12 : 1), sc = k * SC, q = Akira.quadro(an, f, sc, est, !!costas && !/S$/.test(an));
   sx = Math.round(sx); sy = Math.round(sy);
   const g = ctx;
-  if (alfa == null || alfa >= 1) {                                       // sombra suave (fica no chão mesmo pulando)
+  if ((alfa == null || alfa >= 1) && PIX.on) {                           // sombra elíptica em pixel (trama), fica no chão mesmo pulando
+    const rx = Math.round(13 * est.esc * (1 - Math.min(.5, z / 60)));
+    g.globalAlpha = .55; elipse(g, sx, sy, rx, Math.max(2, Math.round(rx * .42)), '#0c061c'); g.globalAlpha = .8; elipse(g, sx, sy, Math.round(rx * .6), Math.max(1, Math.round(rx * .25)), '#0c061c'); g.globalAlpha = 1;
+  } else if (alfa == null || alfa >= 1) {                                // sombra suave (fica no chão mesmo pulando)
     g.save(); g.translate(sx, sy); g.scale(1, .42);
     const r = 14 * est.esc * (1 - Math.min(.5, z / 60)), gr = g.createRadialGradient(0, 0, 1, 0, 0, r);
     gr.addColorStop(0, 'rgba(0,0,0,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -1967,13 +2013,53 @@ function desenharAkira(sx, sy, an, f, face, z, alfa, branco, est) {
   }
   g.save(); g.translate(sx, sy - Math.round(z)); g.scale(face, 1);
   if (alfa != null) g.globalAlpha = alfa;
-  g.drawImage(img, -Akira.AK.OX * k, -Akira.AK.OY * k, q.width / SC, q.height / SC);
+  g.drawImage(img, Math.round(-Akira.AK.OX * k), Math.round(-Akira.AK.OY * k), q.width / SC, q.height / SC);
   g.restore();
 }
 function desenharRastros() {                                             // imagens-fantasma ao esquivar / correr
-  for (const r of rastros) { const [sx, sy] = iso(r.x, r.y); desenharAkira(sx, sy, r.an, r.f, r.face, 0, .38 * (1 - r.t / r.vida)); }
+  for (const r of rastros) { const [sx, sy] = iso(r.x, r.y); desenharAkira(sx, sy, r.an, r.f, r.face, 0, .38 * (1 - r.t / r.vida), false, null, r.costas); }
+}
+// Efeitos em pixel art (visual retrô): faíscas neon, rastro de velocidade, estrela de impacto e aura
+function desenharFxPx(g) {
+  const NEON = ['#7ff3ff', '#ff5fe0', '#ffe45e'];
+  for (const f of fx) {
+    const p = f.t / f.vida, x = Math.round(f.x), y = Math.round(f.y);
+    if (f.tipo === 'poeira') {
+      const r = Math.max(1, Math.round(f.r * (1 + p * 1.2)));
+      g.globalAlpha = .6 * (1 - p); elipse(g, x, y, r, Math.max(1, Math.round(r * .6)), '#e8dcb4'); g.globalAlpha = 1;
+    } else if (f.tipo === 'linha') {
+      g.globalAlpha = .9 * (1 - p); linha(g, x, y, Math.round(f.x + f.dx * f.len * (1 + p)), Math.round(f.y + f.dy * f.len * (1 + p)), 1, '#ffffff'); g.globalAlpha = 1;
+    } else if (f.tipo === 'corte') {                                   // rastro do golpe em arco (branco + ciano neon)
+      const r = f.r * (.8 + p * .35), cx = f.x - Math.cos(f.ang) * r * .35, cy = f.y - Math.sin(f.ang) * r * .35;
+      g.globalAlpha = 1 - p * .8;
+      for (let k = 0; k <= 10; k++) {
+        const a = f.ang - 1.05 + k * .21, e = 1 - Math.abs(k - 5) / 6;
+        R(g, Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 2, 2, '#ffffff');
+        if (e > .3) R(g, Math.round(cx + Math.cos(a) * r * .88), Math.round(cy + Math.sin(a) * r * .88), 2, 2, '#7ff3ff');
+        if (e > .6) R(g, Math.round(cx + Math.cos(a) * r * .76), Math.round(cy + Math.sin(a) * r * .76), 1, 1, '#ff5fe0');
+      }
+      g.globalAlpha = 1;
+    } else if (f.tipo === 'impacto') {                                 // estrela de impacto: raios amarelos com miolo branco
+      const Rr = f.tam * (.5 + p * .9);
+      g.globalAlpha = 1 - p * .85;
+      for (let k = 0; k < 8; k++) {
+        const a = f.rot + k * Math.PI / 4, len = k % 2 ? Rr * .6 : Rr;
+        linha(g, x, y, Math.round(x + Math.cos(a) * len), Math.round(y + Math.sin(a) * len * .8), 2, '#ffe45e');
+        linha(g, x, y, Math.round(x + Math.cos(a) * len * .7), Math.round(y + Math.sin(a) * len * .56), 1, '#ffffff');
+      }
+      disco(g, x, y, Math.max(1, Math.round(Rr * .28 * (1 - p))), '#ffffff');
+      g.globalAlpha = 1;
+    }
+  }
+  if (jog.escudo > 0) {                                                // brilho do escudo ao defender
+    const [sx, sy] = fxPos(20), a = jog.escudo / .25, b0 = jog.face < 0 ? Math.PI : 0;
+    g.globalAlpha = Math.min(1, a);
+    for (let k = -6; k <= 6; k++) { const t = b0 + k * .2; R(g, Math.round(sx + jog.face * 10 + Math.cos(t) * 15), Math.round(sy + Math.sin(t) * 15), 2, 2, k % 2 ? '#bff0ff' : '#ffffff'); }
+    g.globalAlpha = 1;
+  }
 }
 function desenharFx(g) {
+  if (PIX.on) return desenharFxPx(g);
   for (const f of fx) {
     const p = f.t / f.vida;
     if (f.tipo === 'poeira') {
@@ -2019,6 +2105,7 @@ const Akira = (() => {
    Tudo é desenhado por código num canvas auxiliar e vira uma sprite sheet.
    ===================================================================== */
 const D2R = Math.PI / 180;
+const CONF = { get pixel() { return typeof PIX !== 'undefined' && PIX.on; } };   // visual retrô: pixel art (borda dura + paleta reduzida)
 const AK = { UW: 200, UH: 190, OX: 100, OY: 165, K: .34 };      // quadro (unidades de desenho), pés em (OX,OY), K = escala no mundo
 // Cada animação: quantidade de quadros, fps, se repete. imp/seg = trecho do golpe (fração) onde o soco/chute acerta
 const AKIRA_ANIMATIONS = {
@@ -2280,7 +2367,7 @@ function perna(g, q, k, a, P, pe, fFt) {
   g.beginPath(); g.moveTo(k[0] - 5, k[1] + 3); g.lineTo(k[0] + 4, k[1] + 5); g.stroke();
 }
 function tiraFaixa(g, J, P, cor) {                              // pontas da faixa balançando
-  const nó = J.T(7, 7);
+  const nó = P.costas ? J.T(7, -6) : J.T(7, 7);
   const base = [-14 + P.belt * .9, -42 + P.belt * 1.3];
   [[base[0], 20, 4.6], [base[1], 17, 4.2]].forEach(([ang, len, w], i) => {
     const a = J.d(ang), b = J.d(ang - P.belt * .5 - (i ? 8 : -4));
@@ -2301,10 +2388,13 @@ function tronco(g, J, P, faixa) {
   g.save(); g.beginPath(); cam(g); g.clip();
   g.lineCap = 'round'; g.lineJoin = 'round';
   const L = (arr, w, cor) => { g.beginPath(); arr.forEach((p, i) => { const t = T(p[0], p[1]); i ? g.lineTo(t[0], t[1]) : g.moveTo(t[0], t[1]); }); g.lineWidth = w; g.strokeStyle = cor; g.stroke(); };
-  L([[34, 4], [24, 1], [10, -5]], 4.4, COR.giS);                // gola em V (um lado do quimono)
-  L([[34, -4], [24, 2], [12, 8]], 3.6, '#e9eefb');
-  L([[34, 4], [24, 1], [10, -5]], 1.6, OUT);                    // linha da gola
-  L([[34, -4], [25, 2], [13, 8]], 1.3, COR.giSS);
+  if (P.costas) { L([[34, 0], [4, 0]], 1.6, COR.giSS); L([[30, 0], [20, 5]], 1.2, COR.giSS); }     // de costas: costura no meio
+  else {
+    L([[34, 4], [24, 1], [10, -5]], 4.4, COR.giS);                // gola em V (um lado do quimono)
+    L([[34, -4], [24, 2], [12, 8]], 3.6, '#e9eefb');
+    L([[34, 4], [24, 1], [10, -5]], 1.6, OUT);                    // linha da gola
+    L([[34, -4], [25, 2], [13, 8]], 1.3, COR.giSS);
+  }
   L([[20, -10], [17, -3], [20, 4]], 1.4, COR.giSS);             // dobras
   L([[27, -8], [24, -3]], 1.3, COR.giSS);
   L([[13, 7], [16, 3]], 1.3, COR.giSS);
@@ -2312,7 +2402,7 @@ function tronco(g, J, P, faixa) {
   // faixa (muda de cor com a graduação)
   const fx = c => { const pts = [T(3.5, -10.6), T(11.5, -10.4), T(11.5, 10.6), T(3.5, 10.6)]; poli(pts)(c); };
   forma(g, fx, faixa, esc(faixa, .72), 2.2, 2.6);
-  const kn = T(7.5, 7.5);                                        // nó
+  const kn = P.costas ? T(7.5, -6) : T(7.5, 7.5);                                        // nó
   g.save(); g.translate(kn[0], kn[1]); g.rotate(J.l);
   forma(g, c => { c.rect(-4, -4.5, 8, 9); }, faixa, esc(faixa, .7), 1.6, 2.4); g.restore();
 }
@@ -2371,6 +2461,7 @@ function cabeca(g, J, P, faixa) {
     c.bezierCurveTo(10.5, 10.5, 6, 15, 1.5, 14.5); c.bezierCurveTo(-6, 14, -12, 9, -13, -2); c.closePath();
   };
   forma(g, rosto, COR.pele, COR.peleS, 3, 3);
+  if (!P.costas) {
   // olho
   const ox = 5.5, oy = 2.2;
   const eye = P.eye;
@@ -2404,6 +2495,14 @@ function cabeca(g, J, P, faixa) {
   } else if (m === 'smile') {
     g.beginPath(); g.moveTo(3.5, 9.5); g.quadraticCurveTo(7.5, 14.6, 11, 9.4); g.closePath(); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = OUT; g.stroke();
   } else { g.beginPath(); g.moveTo(5, 11); g.quadraticCurveTo(7.6, 12.2, 10, 10.8); g.lineWidth = 1.6; g.strokeStyle = '#8a4a3c'; g.stroke(); }
+  } else if (H !== 'careca') {                                          // de costas: o cabelo cobre a cabeça toda
+    forma(g, rosto, COR.cab, COR.cabS, 3, 2.8);
+    g.save(); g.beginPath(); rosto(g); g.clip();
+    g.beginPath(); g.moveTo(-10, -10); g.quadraticCurveTo(0, -17, 11, -9); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+    g.lineWidth = 1.2; g.strokeStyle = COR.cabL;
+    for (const [a, b, c2, d2] of [[-8, -4, -10, 8], [-2, -6, -3, 10], [5, -5, 6, 8]]) { g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d2); g.stroke(); }
+    g.restore();
+  }
   // franja (cabelo da frente, cobre a testa)
   const fr = P.brow === 2 ? 0 : 0;
   const franja = c => {
@@ -2415,9 +2514,9 @@ function cabeca(g, J, P, faixa) {
     const t4 = bal([-9, -4], [-9.5, 6], .8);
     c.quadraticCurveTo(-9, -9, t4[0], t4[1]); c.quadraticCurveTo(-12, -2, -14.5, -3); c.closePath();
   };
-  if (H !== 'careca') forma(g, franja, COR.cab, COR.cabS, 3, 2.8);
+  if (H !== 'careca' && !P.costas) forma(g, franja, COR.cab, COR.cabS, 3, 2.8);
   // brilho do cabelo (faixa clara curva) e mechas internas
-  if (H !== 'careca') { g.save(); g.beginPath(); franja(g); g.clip();
+  if (H !== 'careca' && !P.costas) { g.save(); g.beginPath(); franja(g); g.clip();
   g.beginPath(); g.moveTo(-10, -13); g.quadraticCurveTo(0, -20, 11, -13); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
   g.beginPath(); g.moveTo(-5, -15.5); g.quadraticCurveTo(2, -18.5, 8, -15); g.lineWidth = 1.4; g.strokeStyle = COR.cabL2; g.stroke();
   g.lineWidth = 1.1; g.strokeStyle = COR.cabL;
@@ -2429,8 +2528,10 @@ function cabeca(g, J, P, faixa) {
     g.beginPath(); g.moveTo(-8, -12.4); g.quadraticCurveTo(0, -15.2, 8, -12.6); g.lineWidth = 1.2; g.strokeStyle = claro(EST.banda, .45); g.stroke();
   }
   // sobrancelha (por cima do cabelo, estilo anime)
+  if (!P.costas) {
   const br = P.eye === 'angry' || P.brow === 1 ? 1.8 : P.brow === 2 ? -1.6 : 0;
   g.beginPath(); g.moveTo(1.2, -4.2 + br * .4); g.lineTo(10.5, -5.2 - br); g.lineWidth = 2.3; g.strokeStyle = OUT; g.lineCap = 'round'; g.stroke();
+  }
   g.restore();
 }
 function aura(g, J, P) {                                         // brilho azul de energia atrás do corpo
@@ -2656,9 +2757,9 @@ const cacheQ = {};
 let externo = null;                                              // sprites PNG carregados de fora (opcional)
 function novoCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 // Devolve o quadro pronto (canvas) em "sc" pixels por unidade de desenho
-function quadro(nome, i, sc, est) {
+function quadro(nome, i, sc, est, costas) {
   const usaExt = externo && est.externo && externo.anims[nome];
-  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + est.id + '|' + (usaExt ? 'E' : 'P');
+  const key = nome + '|' + i + '|' + sc.toFixed(3) + '|' + est.id + '|' + (costas ? 'B' : 'F') + '|' + (usaExt ? 'E' : 'P') + (CONF.pixel ? 'x' : '');
   if (cacheQ[key]) return cacheQ[key];
   const c = novoCanvas(Math.ceil(AK.UW * sc), Math.ceil(AK.UH * sc)), g = c.getContext('2d');
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
@@ -2668,11 +2769,12 @@ function quadro(nome, i, sc, est) {
     g.drawImage(externo.img, ex, ey, fw, fh, 0, 0, c.width, c.height);
   } else {
     g.scale(sc, sc); g.translate(AK.OX, AK.OY);
-    const P = posePorQuadro(nome, i);
+    const P = posePorQuadro(nome, i); P.costas = costas ? 1 : 0;
     if (est.olho && P.eye === 'open') { P.eye = est.olho; P.brow = Math.max(P.brow, 1); }
     if (est.boca && P.mouth === 'closed') P.mouth = est.boca;
     (AKIRA_ANIMATIONS[nome].frente ? desenharFrente : desenhar)(g, P, est);
   }
+  if (CONF.pixel) pixelarCv(c);
   return (cacheQ[key] = c);
 }
 function limparCache() { for (const k in cacheQ) delete cacheQ[k]; }
@@ -2684,7 +2786,7 @@ function montarFolha(sc, est) {
   const meta = { frameW: fw, frameH: fh, anchor: { x: Math.round(AK.OX * sc), y: Math.round(AK.OY * sc) }, animations: {} };
   nomes.forEach((n, row) => {
     const an = AKIRA_ANIMATIONS[n]; meta.animations[n] = { row, frames: an.frames, fps: an.fps, loop: an.loop };
-    for (let i = 0; i < an.frames; i++) { g.drawImage(quadro(n, i, sc, est), i * fw, row * fh, fw, fh); }
+    for (let i = 0; i < an.frames; i++) { g.drawImage(quadro(n, i, sc, est, false), i * fw, row * fh, fw, fh); }
   });
   return { folha, meta };
 }
@@ -2708,6 +2810,7 @@ return { ANIM: AKIRA_ANIMATIONS, AK, quadro, limparCache, montarFolha, carregarE
    ===================================================================== */
 const Cen = (() => {
 const TAU = Math.PI * 2;
+let pixelFn = null;                                  // visual retrô: pixeliza cada sprite pronto
 let SCg = () => 2;                                   // zoom atual (o jogo informa)
 const CT = { GRAMA: 0, TERRA: 1, AGUA: 2, PONTE: 3, AREIA: 4, PEDRA: 5, PISO: 6, TATAME: 7, OUTONO: 8, CEREJA: 9, CAVERNA: 10, TANGER: 11, LAJE: 12 };
 const OL = '#2b1f2e';                                // contorno quente escuro (nada de preto puro)
@@ -2763,6 +2866,7 @@ function asar(s) {
   const c = cv(s.w * sc, s.h * sc), g = c.getContext('2d');
   g.scale(sc, sc); g.lineJoin = 'round'; g.lineCap = 'round'; g.imageSmoothingEnabled = true;
   s.fn(g, s);
+  if (pixelFn) pixelFn(c);
   s.sc = sc; s.c = c; return c;
 }
 // desenha o sprite com balanço (vento): cisalha o topo pra um lado e pro outro
@@ -3383,7 +3487,7 @@ function criarSprites(SPR) {
 
 return {
   CT, hi, asar, desenhaHi, rombo, ladrilho, bordaTile, aguaBase, aguaAnim, casaSpr, paredeHi, criarSprites, luzSolar, nuvens, folhaFx, sombraSuave, brilho, cacheCasa,
-  setSC: f => { SCg = f; }, mul
+  setSC: f => { SCg = f; }, setPixel: f => { pixelFn = f; }, mul
 };
 })();
 
@@ -3410,11 +3514,11 @@ function desenharObj(o, sx, sy) {
     case 'jogador': {
       const [an, fr] = animJogador();
       desenharRastros();
-      desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0); break;
+      desenharAkira(sx, sy, an, fr, jog.face, jog.z, 1, o.flash > 0, null, jog.costas); break;
     }
     case 'npc': {
       virarObj(o);
-      desenharAkira(sx, sy, 'relax', Math.floor(tempo * 3 + o.x) % 4, o.face, 0, 1, false, estiloPal(o.pal));
+      desenharAkira(sx, sy, 'relax', Math.floor(tempo * 3 + o.x) % 4, o.face, 0, 1, false, estiloPal(o.pal), o.costas);
       const ey = Math.round(sy - 48 * (o.pal.esc || 1));
       ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
       const w = ctx.measureText(o.nome).width + 6;
@@ -3426,7 +3530,7 @@ function desenharObj(o, sx, sy) {
       if (!o.vivo && Math.floor(o.t * 20) % 2) break;
       const [an, fr] = animInimigo(o);
       virarObj(o);
-      desenharAkira(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, an, fr, o.face, 0, 1, o.flash > 0, estiloPal(o.pal));
+      desenharAkira(sx + (o.est === 'prep' ? (Math.floor(tempo * 30) % 2) : 0), sy, an, fr, o.face, 0, 1, o.flash > 0, estiloPal(o.pal), o.costas);
       const hy = Math.round(sy - 46 * (o.pal.esc || 1));
       if (o.vivo && o.hp < o.hpMax) { R(ctx, Math.round(sx) - 8, hy, 16, 3, '#000'); R(ctx, Math.round(sx) - 7, hy + 1, Math.max(0, Math.round(14 * o.hp / o.hpMax)), 1, '#e0453a'); }
       if (o.est === 'prep') { ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#ff4040'; ctx.fillText('!', Math.round(sx), hy - 3); }
@@ -3466,6 +3570,14 @@ function renderizar(dt) {
   for (const [i, j] of mapa.aguas) {                                   // água viva: ondas, brilhos e faíscas
     const x = (i - j) * 16 - 16, y = (i + j) * 8;
     if (x > vx0 && x < vx1 && y > vy0 && y < vy1) Cen.aguaAnim(g, i, j, x, y, tempo);
+  }
+  if (gradeNeon && mapa.grade) g.drawImage(mapa.grade, -mapa.ox, -mapa.oy, mapa.grade.width / SC, mapa.grade.height / SC);
+  if (gradeNeon) {                                                     // losango neon pulsando no tile onde o Akira está
+    const ti = Math.floor(jog.x), tj = Math.floor(jog.y), pts = [iso(ti, tj), iso(ti + 1, tj), iso(ti + 1, tj + 1), iso(ti, tj + 1)];
+    g.globalAlpha = .55 + .3 * Math.sin(tempo * 6);
+    if (PIX.on) pts.forEach((p, k) => { const q = pts[(k + 1) % 4]; linha(g, p[0], p[1], q[0], q[1], 1, '#7ff3ff'); });
+    else { g.strokeStyle = '#7ff3ff'; g.lineWidth = 1.2; g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.stroke(); }
+    g.globalAlpha = .1; g.fillStyle = '#7ff3ff'; g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); g.globalAlpha = 1;
   }
   // Efeito no chão: anel da técnica de aura
   for (const a of aneis) {
@@ -3518,7 +3630,9 @@ function renderizar(dt) {
     g.fillStyle = '#000'; g.fillText(t.txt, Math.round(sx) + 1, Math.round(sy - 28 - t.t * 16) + 1);
     g.fillStyle = t.cor; g.fillText(t.txt, Math.round(sx), Math.round(sy - 28 - t.t * 16)); g.globalAlpha = 1;
   }
-  for (const f of fagulhas) {                                          // faíscas = riscos brilhantes
+  if (PIX.on) for (const f of fagulhas) {                              // faíscas neon em pixel
+    g.globalAlpha = 1 - f.t / f.vida; R(g, Math.round(f.x), Math.round(f.y), 2, 2, f.cor); R(g, Math.round(f.x - f.vx * .04), Math.round(f.y - f.vy * .04), 1, 1, '#ffffff');
+  } else for (const f of fagulhas) {                                   // faíscas = riscos brilhantes
     g.globalAlpha = 1 - f.t / f.vida; g.strokeStyle = f.cor; g.lineWidth = 1.2; g.lineCap = 'round';
     g.beginPath(); g.moveTo(f.x, f.y); g.lineTo(f.x - f.vx * .045, f.y - f.vy * .045); g.stroke();
   } g.globalAlpha = 1;
@@ -3577,6 +3691,7 @@ if (baseExt) {
 window.AKIRA = { Akira, exportarSprites, jog, carregarMapa };                       // para testes no console
 
 Cen.setSC(() => SC);
+Cen.setPixel(c => { if (PIX.on) pixelarCv(c); });
 gerarSprites();
 gerarSprites2();
 Cen.criarSprites(SPR);                                                // troca árvores, bambus, pedras, objetos e cachoeira pelos desenhos anime
