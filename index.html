@@ -1909,11 +1909,11 @@ function animJogador() {
   const fr = (n, q) => Math.max(0, Math.min(A[n].frames - 1, Math.round(q * (A[n].frames - 1))));
   switch (jog.est) {
     case 'ataque': {                                                  // o tempo do golpe é "esticado" pra o soco/chute acertar no quadro certo
-      const tk = jog.tec, n = TKANIM[jog.tkId] || (tk.pose === 'chute' ? 'kick' : 'punch'), an = A[n];
+      const tk = jog.tec, n0 = TKANIM[jog.tkId] || (tk.pose === 'chute' ? 'kick' : 'punch'), n = n0 + (jog.dir === 2 ? 'S' : ''), an = A[n];   // virado pro sul = vista de frente
       const q = t < tk.prep ? t / tk.prep * an.imp : t < tk.prep + tk.ativo ? an.imp + (t - tk.prep) / tk.ativo * (an.seg - an.imp) : an.seg + (t - tk.prep - tk.ativo) / tk.rec * (1 - an.seg);
       return [n, fr(n, q)];
     }
-    case 'rajada': return ['combo', Math.min(11, Math.floor(t / .72 * 12))];
+    case 'rajada': return [jog.dir === 2 ? 'comboS' : 'combo', Math.min(11, Math.floor(t / .72 * 12))];
     case 'esquiva': return ['dodge', fr('dodge', t / .26)];
     case 'dano': return ['hit', fr('hit', (.28 - t) / .28)];
     case 'ko': return ['ko', fr('ko', t / .8)];
@@ -1933,9 +1933,10 @@ function virarObj(o) { const v = DIRV[o.dir][0]; if (v) o.face = v > 0 ? 1 : -1;
 function animInimigo(o) {                                          // qual animação anime o inimigo usa agora
   if (!o.vivo) return ['ko', Math.max(0, Math.min(5, Math.floor((.5 - o.t) / .5 * 6)))];
   if (o.stun > 0) return ['hit', Math.max(0, Math.min(3, Math.floor((.45 - o.stun) / .45 * 4)))];
-  if (o.est === 'prep') return ['punch', (.5 - o.t) > .25 ? 1 : 0];                    // puxa o braço pra trás (avisa o golpe)
-  if (o.est === 'golpe') return ['punch', 2 + Math.min(1, Math.floor((.18 - o.t) / .18 * 2))];
-  if (o.est === 'rec') return ['punch', o.t > .35 ? 4 : 5];
+  const S = o.dir === 2 ? 'S' : '';
+  if (o.est === 'prep') return ['punch' + S, (.5 - o.t) > .25 ? 1 : 0];                    // puxa o braço pra trás (avisa o golpe)
+  if (o.est === 'golpe') return ['punch' + S, 2 + Math.min(1, Math.floor((.18 - o.t) / .18 * 2))];
+  if (o.est === 'rec') return ['punch' + S, o.t > .35 ? 4 : 5];
   if (o.anda) return ['walk', Math.floor(o.fase / 6.283 * 8) % 8];
   return ['idle', Math.floor(tempo * 8 + o.x * 3) % 6];
 }
@@ -2183,7 +2184,7 @@ function amostrar(nome, p) {
   let i = 0; while (i < ks.length - 2 && p > ks[i + 1].t) i++;
   const a = ks[i], b = ks[i + 1], u = (b.t === a.t) ? 1 : Math.max(0, Math.min(1, (p - a.t) / (b.t - a.t))), e = ease[b.e](u);
   const r = {};
-  for (const k in a.p) r[k] = (typeof a.p[k] === 'number') ? lerp(a.p[k], b.p[k], e) : (u < .5 ? a.p[k] : b.p[k]);
+  for (const k in a.p) r[k] = (typeof a.p[k] === 'number') ? lerp(a.p[k], b.p[k], e) : Array.isArray(a.p[k]) ? a.p[k].map((v, n) => lerp(v, b.p[k][n], e)) : (u < .5 ? a.p[k] : b.p[k]);
   return r;
 }
 function posePorQuadro(nome, i) {
@@ -2459,6 +2460,197 @@ function desenhar(g, P, est) {
   g.restore();
 }
 
+
+/* ---------- VISTA DE FRENTE (Akira virado pra tela: golpes pra baixo/sul) ----------
+   Mesmo personagem, mas desenhado de frente: braços e pernas apontam pra câmera (encurtados),
+   punho/pé ficam maiores (perspectiva) e passam na frente do corpo. */
+const POSEF0 = {
+  dx: 0, lift: 0, sx: 1, lean: 0, head: 0,
+  lk: [8, 24], la: [5, 25], lfs: 1, rk: [8, 24], ra: [5, 25], rfs: 1,        // joelho e tornozelo (x = pra fora)
+  le: [7, 15], lh: [-4, -14], lhs: 1, re: [7, 15], rh: [-4, -14], rhs: 1,    // cotovelo e mão
+  hair: 0, belt: 0, eye: 'open', mouth: 'closed', brow: 0, glow: 0
+};
+const pf = o => Object.assign({}, POSEF0, o);
+const kg = (t, o, e) => ({ t, p: pf(o), e: e || 'smooth' });
+Object.assign(KEYS, {
+  punchS: [
+    kg(0),
+    kg(.2, { re: [3, 18], rh: [-5, -9], lean: -3, lk: [11, 22], rk: [11, 22], la: [6, 24], ra: [6, 24], brow: 1, hair: -3, belt: 6 }),
+    kg(.4, { re: [3, 5], rh: [-3, 2], rhs: 2.1, lean: 5, dx: 1, lk: [12, 20], rk: [12, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -10, belt: -8 }, 'out'),
+    kg(.6, { re: [3, 5], rh: [-3, 1], rhs: 2.3, lean: 6, dx: 1, lk: [12, 20], rk: [12, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -8, belt: -6 }),
+    kg(.8, { re: [6, 11], rh: [-4, -8], rhs: 1.3, lean: 2, brow: 1, hair: 3 }),
+    kg(1)],
+  punchHeavyS: [
+    kg(0),
+    kg(.15, { le: [3, 18], lh: [-5, -9], lean: 6, sx: .94, lk: [12, 21], rk: [12, 21], la: [7, 24], ra: [7, 24], brow: 1, hair: 6, belt: 8 }),
+    kg(.38, { le: [3, 4], lh: [-3, 1], lhs: 2.4, re: [10, 14], rh: [-2, -9], lean: -7, sx: .92, dx: -1, lk: [14, 19], rk: [14, 19], la: [8, 22], ra: [8, 22], brow: 1, mouth: 'shout', head: -4, hair: -14, belt: -12 }, 'out'),
+    kg(.58, { le: [3, 4], lh: [-3, 0], lhs: 2.6, re: [10, 14], rh: [-2, -9], lean: -8, sx: .92, lk: [14, 19], rk: [14, 19], la: [8, 22], ra: [8, 22], brow: 1, mouth: 'shout', head: -4, hair: -10, belt: -10 }),
+    kg(.8, { le: [6, 12], lh: [-4, -8], lhs: 1.3, lean: -2, brow: 1 }),
+    kg(1)],
+  elbowS: [
+    kg(0),
+    kg(.25, { re: [8, 8], rh: [-3, -8], rhs: 1.2, lean: -4, brow: 1, hair: 4 }),
+    kg(.45, { re: [2, 9], rh: [-3, -8], rhs: 1.8, lean: 7, dx: 1, lk: [12, 20], rk: [12, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -10, belt: -8 }, 'out'),
+    kg(.62, { re: [2, 9], rh: [-3, -9], rhs: 1.9, lean: 8, lk: [12, 20], rk: [12, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -8 }),
+    kg(.82, { re: [6, 13], rh: [-4, -10], brow: 1 }),
+    kg(1)],
+  kickS: [
+    kg(0),
+    kg(.18, { rk: [5, 4], ra: [0, 12], rfs: 1.3, lean: 0, le: [10, 9], lh: [3, -8], re: [10, 9], rh: [3, -8], brow: 1, belt: 6 }),
+    kg(.42, { rk: [4, -12], ra: [-1, 3], rfs: 2.6, lean: -4, lift: 0, le: [12, 8], lh: [8, -4], re: [12, 8], rh: [8, -4], lk: [8, 25], la: [4, 25], brow: 1, mouth: 'shout', hair: 8, belt: -10 }, 'out'),
+    kg(.62, { rk: [4, -13], ra: [-1, 2], rfs: 2.8, lean: -5, le: [12, 8], lh: [8, -4], re: [12, 8], rh: [8, -4], lk: [8, 25], la: [4, 25], brow: 1, mouth: 'shout', hair: 6 }),
+    kg(.84, { rk: [5, 6], ra: [0, 12], rfs: 1.3, brow: 1 }),
+    kg(1)],
+  highKickS: [
+    kg(0),
+    kg(.2, { rk: [6, 2], ra: [0, 12], rfs: 1.3, le: [11, 8], lh: [5, -8], re: [11, 8], rh: [5, -8], brow: 1 }),
+    kg(.45, { rk: [7, -24], ra: [1, -8], rfs: 2.4, lean: -10, head: -3, le: [14, 4], lh: [10, -4], re: [14, 4], rh: [10, -4], lk: [6, 25], la: [3, 25], brow: 1, mouth: 'shout', hair: 12, belt: -12 }, 'out'),
+    kg(.66, { rk: [7, -26], ra: [1, -9], rfs: 2.6, lean: -12, head: -3, le: [14, 4], lh: [10, -4], re: [14, 4], rh: [10, -4], lk: [6, 25], la: [3, 25], brow: 1, mouth: 'shout', hair: 10 }),
+    kg(.86, { rk: [6, 2], ra: [0, 12], rfs: 1.3, brow: 1 }),
+    kg(1)],
+  spinKickS: [
+    kg(0),
+    kg(.15, { sx: .85, lk: [11, 22], rk: [11, 22], la: [6, 24], ra: [6, 24], lean: -5, brow: 1, hair: 6 }),
+    kg(.3, { sx: .22, lk: [9, 22], rk: [9, 22], la: [5, 24], ra: [5, 24], hair: 18, belt: 16, brow: 1 }),
+    kg(.5, { sx: 1, rk: [17, -3], ra: [14, 2], rfs: 1.6, lean: 6, le: [10, 10], lh: [6, -6], re: [-2, 10], rh: [-6, -6], brow: 1, mouth: 'shout', hair: -16, belt: -18 }, 'out'),
+    kg(.7, { sx: 1, rk: [18, -3], ra: [15, 2], rfs: 1.7, lean: 7, le: [10, 10], lh: [6, -6], re: [-2, 10], rh: [-6, -6], brow: 1, mouth: 'shout', hair: -12 }),
+    kg(.85, { sx: .3, hair: 14, belt: 14, brow: 1 }),
+    kg(1)],
+  comboS: [
+    kg(0),
+    kg(.08, { re: [3, 18], rh: [-5, -9], lean: -3, brow: 1 }),
+    kg(.16, { re: [3, 5], rh: [-3, 2], rhs: 2.1, lean: 5, lk: [12, 20], rk: [12, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -8, belt: -6 }, 'out'),
+    kg(.3, { le: [3, 18], lh: [-5, -9], re: [6, 12], rh: [-4, -8], lean: 3, brow: 1 }),
+    kg(.4, { le: [3, 4], lh: [-3, 1], lhs: 2.3, re: [10, 14], rh: [-2, -9], lean: -7, sx: .93, lk: [13, 20], rk: [13, 20], la: [7, 23], ra: [7, 23], brow: 1, mouth: 'shout', hair: -12, belt: -10 }, 'out'),
+    kg(.55, { le: [8, 12], lh: [-4, -8], re: [6, 14], rh: [-4, -9], lean: 0, brow: 1 }),
+    kg(.68, { re: [4, 20], rh: [-3, 6], lean: -4, lk: [12, 22], rk: [12, 22], la: [7, 24], ra: [7, 24], brow: 1 }),
+    kg(.82, { re: [3, 0], rh: [-2, -14], rhs: 2.1, lean: 8, lk: [13, 19], rk: [13, 19], la: [8, 22], ra: [8, 22], brow: 1, mouth: 'shout', hair: -14, belt: -12, head: -3 }, 'out'),
+    kg(1, { re: [6, 10], rh: [-4, -8], brow: 1 })]
+});
+['punch', 'punchHeavy', 'elbow', 'kick', 'highKick', 'spinKick', 'combo'].forEach(n => {
+  const a = AKIRA_ANIMATIONS[n]; AKIRA_ANIMATIONS[n + 'S'] = Object.assign({}, a, { frente: true });
+});
+
+function desenharFrente(g, P, est) {
+  EST = est; COR = est.cor; const faixa = est.faixa;
+  const sg = [-1, 1];                                                  // lado esquerdo e direito da tela
+  const knee = [P.lk, P.rk], ank = [P.la, P.ra], fs = [P.lfs, P.rfs], elb = [P.le, P.re], han = [P.lh, P.rh], hs = [P.lhs, P.rhs];
+  const baixo = Math.max(knee[0][1] + ank[0][1], knee[1][1] + ank[1][1]) + 5;
+  const H = [P.dx, -baixo - P.lift];
+  const l = P.lean * D2R, u = [Math.sin(l), -Math.cos(l)], f = [Math.cos(l), Math.sin(l)];
+  const T = (a, b) => [H[0] + u[0] * a + f[0] * b, H[1] + u[1] * a + f[1] * b];
+  g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
+  if (P.sx !== 1) { g.translate(H[0], 0); g.scale(P.sx, 1); g.translate(-H[0], 0); }
+  if (P.glow > 0) aura(g, { T: (a, b) => T(a, b) }, P);
+  // pernas: as que estão mais perto da câmera (pé maior) vão por último
+  const pernas = [0, 1].sort((a, b) => fs[a] - fs[b]);
+  const perna = i => {
+    const s = sg[i], q = T(0, s * 5), k = [q[0] + s * knee[i][0], q[1] + knee[i][1]], a = [k[0] + s * ank[i][0], k[1] + ank[i][1]];
+    membro(g, q[0], q[1], k[0], k[1], 17.5, COR.gi, COR.giS);
+    membro(g, k[0], k[1], a[0], a[1], 14.5, COR.gi, COR.giS);
+    g.lineWidth = 1.3; g.strokeStyle = COR.giSS; g.beginPath(); g.moveTo(k[0] - 4, k[1] + 3); g.lineTo(k[0] + 4, k[1] + 4); g.stroke();
+    // pé de frente: sola oval com dedinhos (cresce quando vem pra câmera)
+    const e = fs[i];
+    g.save(); g.translate(a[0], a[1] + 2); g.scale(e, e);
+    forma(g, c => c.ellipse(0, 1, 7, 4.3, 0, 0, 7), COR.pele, COR.peleS, 1.6, 2.2 / e);
+    g.fillStyle = '#9a5a44'; for (let t = -2; t <= 2; t++) { g.beginPath(); g.arc(t * 2.5, -1.4, .85, 0, 7); g.fill(); }
+    g.restore();
+  };
+  pernas.forEach(perna);
+  // tronco de frente
+  // desenha o tronco como polígono suave simétrico
+  const tr = c => { const pts = [[0, -8.5], [10, -9.5], [22, -12.5], [30, -13.5], [34, -9], [35, 0], [34, 9], [30, 13.5], [22, 12.5], [10, 9.5], [0, 8.5]]; const P2 = pts.map(p => T(p[0], p[1])); c.moveTo(P2[0][0], P2[0][1]); for (let i = 1; i < P2.length; i++) c.lineTo(P2[i][0], P2[i][1]); c.closePath(); };
+  forma(g, tr, COR.gi, COR.giS, 4, 3.2);
+  g.save(); g.beginPath(); tr(g); g.clip(); g.lineCap = 'round';
+  const Ln = (arr, w, c) => { g.beginPath(); arr.forEach((p, i) => { const t = T(p[0], p[1]); i ? g.lineTo(t[0], t[1]) : g.moveTo(t[0], t[1]); }); g.lineWidth = w; g.strokeStyle = c; g.stroke(); };
+  Ln([[35, -6], [20, 0], [10, 7]], 4.2, COR.giS); Ln([[35, 6], [20, 0], [10, -7]], 3.6, '#e9eefb'); Ln([[35, -6], [20, 0], [10, 7]], 1.5, OUT); Ln([[35, 6], [21, 0], [11, -7]], 1.2, COR.giSS);
+  Ln([[16, -10], [22, -8]], 1.2, COR.giSS); Ln([[16, 10], [22, 8]], 1.2, COR.giSS);
+  g.restore();
+  // faixa com nó no meio e pontas
+  const bf = c => { const p = [T(3, -9.8), T(11, -10.2), T(11, 10.2), T(3, 9.8)]; c.moveTo(p[0][0], p[0][1]); p.slice(1).forEach(q => c.lineTo(q[0], q[1])); c.closePath(); };
+  forma(g, bf, faixa, esc(faixa, .72), 2, 2.6);
+  const kn = T(7, 0);
+  [-1, 1].forEach((s, i) => { const a = (s * 12 + P.belt * s * .5) * D2R; const x1 = kn[0] + Math.sin(a) * 9, y1 = kn[1] + 3 + Math.cos(a) * 9; traco(g, kn[0], kn[1], x1, y1, 6.4, OUT); traco(g, kn[0], kn[1], x1, y1, 4.2, i ? esc(faixa, .8) : faixa); });
+  forma(g, c => { c.rect(kn[0] - 3.8, kn[1] - 3.8, 7.6, 7.6); }, faixa, esc(faixa, .7), 1.6, 2.4);
+  // cabeça
+  cabecaF(g, T(33, 0), P, l);
+  // braços: o que está esticado pra câmera (mão maior) por último
+  const bracos = [0, 1].sort((a, b) => hs[a] - hs[b]);
+  const braco = i => {
+    const s = sg[i], S0 = T(30, s * 12), e = [S0[0] + s * elb[i][0], S0[1] + elb[i][1]], h = [e[0] + s * han[i][0], e[1] + han[i][1]], r = hs[i];
+    membro(g, e[0], e[1], h[0], h[1], 9 * Math.min(1.5, r), COR.pele, COR.peleS);
+    membro(g, S0[0], S0[1], e[0], e[1], 13.5, COR.gi, COR.giS);
+    g.save(); g.translate(h[0], h[1]); g.scale(r, r);
+    forma(g, c => c.arc(0, 0, 6.4, 0, 7), COR.pele, COR.peleS, 2.2, 2.8 / r);
+    g.strokeStyle = '#9a5a44'; g.lineWidth = 1.2 / Math.min(r, 1.4); for (const k of [-3.4, -1.1, 1.2, 3.5]) { g.beginPath(); g.moveTo(k, -4.4); g.lineTo(k, -1.2); g.stroke(); }
+    g.restore();
+  };
+  bracos.forEach(braco);
+  g.restore();
+}
+function cabecaF(g, C, P, lean) {
+  g.save(); g.translate(C[0], C[1] - 0); g.rotate((lean * .5 + P.head * D2R)); g.translate(0, -17); g.scale(1.1, 1.1);
+  const H = EST.cabelo, hs = P.hair;
+  const bal = (r, t, f) => { const a = hs * f * D2R, dx = t[0] - r[0], dy = t[1] - r[1]; return [r[0] + dx * Math.cos(a) + dy * Math.sin(a), r[1] - dx * Math.sin(a) + dy * Math.cos(a)]; };
+  const mecha = (b1, b2, t, curva, k) => {
+    const ra = [(b1[0] + b2[0]) / 2, (b1[1] + b2[1]) / 2]; t = [ra[0] + (t[0] - ra[0]) * k, ra[1] + (t[1] - ra[1]) * k];
+    const tp = bal(ra, t, 1), dx = tp[0] - ra[0], dy = tp[1] - ra[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+    const c1 = [(b1[0] + tp[0]) / 2 + nx * curva, (b1[1] + tp[1]) / 2 + ny * curva], c2 = [(b2[0] + tp[0]) / 2 + nx * curva * .5, (b2[1] + tp[1]) / 2 + ny * curva * .5];
+    forma(g, c => { c.moveTo(b1[0], b1[1]); c.quadraticCurveTo(c1[0], c1[1], tp[0], tp[1]); c.quadraticCurveTo(c2[0], c2[1], b2[0], b2[1]); c.closePath(); }, COR.cab, COR.cabS, 2.2, 2.4);
+    g.beginPath(); g.moveTo(ra[0], ra[1]); g.lineTo(ra[0] + dx * .82, ra[1] + dy * .82); g.lineWidth = 1.2; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+  };
+  if (EST.banda) { [[-1], [1]].forEach(([s]) => { const x1 = s * 21, y1 = -7 - hs * .2; traco(g, s * 12, -8, x1, y1, 5.6, OUT); traco(g, s * 12, -8, x1, y1, 3.4, EST.banda); }); }
+  const k = H === 'espeto' ? 1 : H === 'curto' ? .45 : 0;
+  if (k > 0) {
+    mecha([-12, -10], [-7, -16], [-26, -20], -4, k); mecha([12, -10], [7, -16], [26, -20], 4, k);
+    mecha([-9, -16], [-3, -18], [-12, -37], -3, k); mecha([9, -16], [3, -18], [12, -37], 3, k); mecha([-3, -18], [3, -18], [0, -40], 2, k);
+  }
+  if (H === 'coque') forma(g, c => c.arc(0, -23, 7.2, 0, 7), COR.cab, COR.cabS, 2.2, 2.6);
+  if (H === 'longo' || H === 'tranca') [-1, 1].forEach(s => forma(g, c => { c.moveTo(s * 11, -12); c.bezierCurveTo(s * 20, -8, s * 19, 20, s * 15, 34); c.lineTo(s * 9, 32); c.bezierCurveTo(s * 11, 18, s * 11, 4, s * 9, -2); c.closePath(); }, COR.cab, COR.cabS, 2.4, 2.6));
+  traco(g, 0, 8, 0, 18, 8, OUT); traco(g, 0, 8, 0, 18, 5.4, COR.peleS);                         // pescoço
+  [-1, 1].forEach(s => forma(g, c => c.ellipse(s * 12.4, 1, 2.8, 4.2, 0, 0, 7), COR.pele, COR.peleS, 1, 2));    // orelhas
+  forma(g, c => { c.moveTo(-12, -6); c.bezierCurveTo(-13, -16, -6, -18.5, 0, -18.5); c.bezierCurveTo(6, -18.5, 13, -16, 12, -6); c.bezierCurveTo(12.5, 4, 8, 13, 0, 14.8); c.bezierCurveTo(-8, 13, -12.5, 4, -12, -6); c.closePath(); }, COR.pele, COR.peleS, 3, 3);
+  // olhos (dois, de frente)
+  const olho = (ox, oy, s) => {
+    const eye = P.eye, ang = eye === 'angry' ? 1 : 0;
+    g.save(); g.translate(ox, oy); g.scale(s, 1);
+    if (eye === 'closed' || eye === 'happy') { g.beginPath(); if (eye === 'happy') { g.moveTo(-4.5, 1.5); g.quadraticCurveTo(0, -5, 4.5, 1.5); } else { g.moveTo(-4.5, .5); g.quadraticCurveTo(0, 3.5, 4.5, .5); } g.lineWidth = 2.2; g.strokeStyle = OUT; g.stroke(); }
+    else if (eye === 'hurt') { g.lineWidth = 2.2; g.strokeStyle = OUT; g.beginPath(); g.moveTo(-4, -3); g.lineTo(3, 0); g.lineTo(-4, 3.5); g.stroke(); }
+    else {
+      const es = c => { c.moveTo(-4.8, -1 + ang); c.quadraticCurveTo(0, -6.2 + ang * 1.5, 4.8, -1.4); c.quadraticCurveTo(4.2, 4.6, 0, 5); c.quadraticCurveTo(-4.2, 4.6, -4.8, -1 + ang); c.closePath(); };
+      g.beginPath(); es(g); g.fillStyle = '#fff'; g.fill(); g.save(); g.beginPath(); es(g); g.clip();
+      const gr = g.createLinearGradient(0, -6, 0, 6); gr.addColorStop(0, esc(EST.iris, .38)); gr.addColorStop(.45, EST.iris); gr.addColorStop(1, claro(EST.iris, .5));
+      g.beginPath(); g.ellipse(0, .4, 3.6, 4.8, 0, 0, 7); g.fillStyle = gr; g.fill(); g.beginPath(); g.ellipse(0, .2, 1.8, 2.5, 0, 0, 7); g.fillStyle = '#1a0c10'; g.fill(); g.restore();
+      g.beginPath(); g.arc(1.4, -1.9, 1.4, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(-1.2, 2.3, .8, 0, 7); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
+      g.beginPath(); g.moveTo(-5.4, -.2 + ang); g.quadraticCurveTo(0, -6.8 + ang * 1.5, 5.6, -1.6); g.lineWidth = 2.4; g.strokeStyle = OUT; g.stroke();
+    }
+    g.restore();
+  };
+  olho(-5.2, 1.5, -1); olho(5.2, 1.5, 1);
+  g.lineWidth = 1.3; g.strokeStyle = '#a45f48'; g.beginPath(); g.moveTo(-.6, 5.6); g.lineTo(.6, 7); g.stroke();
+  const m = P.mouth;
+  if (m === 'shout' || m === 'open') { g.beginPath(); g.ellipse(0, 10.2, m === 'shout' ? 3.6 : 2.4, m === 'shout' ? 3.4 : 2.4, 0, 0, 7); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = OUT; g.stroke(); g.beginPath(); g.ellipse(0, 11.4, 2, 1.1, 0, 0, 7); g.fillStyle = '#e8737f'; g.fill(); }
+  else if (m === 'smile') { g.beginPath(); g.moveTo(-4, 9); g.quadraticCurveTo(0, 14.5, 4, 9); g.closePath(); g.fillStyle = '#6b1d2a'; g.fill(); g.lineWidth = 1.4; g.strokeStyle = OUT; g.stroke(); }
+  else { g.beginPath(); g.moveTo(-3, 10.4); g.quadraticCurveTo(0, 11.8, 3, 10.4); g.lineWidth = 1.5; g.strokeStyle = '#8a4a3c'; g.stroke(); }
+  // franja
+  if (H !== 'careca') {
+    const fr = c => {
+      c.moveTo(-13.5, -4); c.bezierCurveTo(-15, -20, 15, -20, 13.5, -4); c.quadraticCurveTo(12, -7, 10.5, -9);
+      const t = [bal([9, -9], [11, -1.6], 1), bal([3.5, -9], [4.5, -2], 1), bal([-3, -9], [-4, -2], 1), bal([-9, -9], [-11, -1.6], 1)];
+      c.quadraticCurveTo(10, -6, t[0][0], t[0][1]); c.quadraticCurveTo(6.5, -8, 5, -10); c.quadraticCurveTo(4.8, -6, t[1][0], t[1][1]); c.quadraticCurveTo(0, -8, -1, -10.4);
+      c.quadraticCurveTo(-3, -6, t[2][0], t[2][1]); c.quadraticCurveTo(-6.5, -8, -7.5, -10); c.quadraticCurveTo(-9, -6, t[3][0], t[3][1]); c.quadraticCurveTo(-12.5, -7, -13.5, -4); c.closePath();
+    };
+    forma(g, fr, COR.cab, COR.cabS, 3, 2.8);
+    g.save(); g.beginPath(); fr(g); g.clip(); g.beginPath(); g.moveTo(-9, -14); g.quadraticCurveTo(0, -20.5, 9, -14); g.lineWidth = 3; g.strokeStyle = COR.cabL; g.lineCap = 'round'; g.stroke();
+    g.beginPath(); g.moveTo(-4, -16.5); g.quadraticCurveTo(1, -19, 6, -16); g.lineWidth = 1.3; g.strokeStyle = COR.cabL2; g.stroke(); g.restore();
+  }
+  if (EST.banda) { g.beginPath(); g.moveTo(-13.4, -7); g.quadraticCurveTo(0, -12.5, 13.4, -7); g.lineWidth = 7; g.strokeStyle = OUT; g.lineCap = 'round'; g.stroke(); g.lineWidth = 4.2; g.strokeStyle = EST.banda; g.stroke(); }
+  const br = P.eye === 'angry' || P.brow === 1 ? 1.8 : P.brow === 2 ? -1.6 : 0;
+  g.lineCap = 'round'; g.lineWidth = 2.3; g.strokeStyle = OUT;
+  g.beginPath(); g.moveTo(-9.5, -4.6 - br); g.lineTo(-2.5, -4.2 + br * .4); g.stroke(); g.beginPath(); g.moveTo(9.5, -4.6 - br); g.lineTo(2.5, -4.2 + br * .4); g.stroke();
+  g.restore();
+}
+
 /* ---------- 4. SPRITE SHEET (quadros guardados em canvas auxiliar) ---------- */
 const cacheQ = {};
 let externo = null;                                              // sprites PNG carregados de fora (opcional)
@@ -2479,7 +2671,7 @@ function quadro(nome, i, sc, est) {
     const P = posePorQuadro(nome, i);
     if (est.olho && P.eye === 'open') { P.eye = est.olho; P.brow = Math.max(P.brow, 1); }
     if (est.boca && P.mouth === 'closed') P.mouth = est.boca;
-    desenhar(g, P, est);
+    (AKIRA_ANIMATIONS[nome].frente ? desenharFrente : desenhar)(g, P, est);
   }
   return (cacheQ[key] = c);
 }
